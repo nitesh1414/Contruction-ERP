@@ -121,7 +121,7 @@ Contruction-ERP/
 ├── web-app/               # React + Vite project/site portal (18 screens)
 ├── admin-panel/           # React + Vite admin console (9 screens)
 ├── mobile/                # Expo SDK 54 app (15 screens, offline-first)
-└── .github/workflows/ci.yml  # CI: MySQL 8 service → migrate, seed, smoke + builds
+└── docs/ci-workflow.yml    # Ready-to-install GitHub Actions CI file (see below)
 ```
 
 ## 🔑 API structure (excerpt)
@@ -136,7 +136,15 @@ Contruction-ERP/
 
 ## ✅ CI
 
-GitHub Actions ([ci.yml](.github/workflows/ci.yml)) spins up MySQL 8.0 and runs, on every push:
+A ready-made GitHub Actions workflow ships at [docs/ci-workflow.yml](docs/ci-workflow.yml). To enable it, copy it to `.github/workflows/ci.yml` once:
+
+```bash
+mkdir -p .github/workflows && cp docs/ci-workflow.yml .github/workflows/ci.yml
+```
+
+> Installing a workflow file requires a token with the **workflow** permission, so this one-time copy is done by the repo owner from their machine or the GitHub web UI ("Add file").
+
+It spins up MySQL 8.0 and runs, on every push:
 
 1. **backend** — syntax check → migrate → seed → boot → 16-point smoke test
 2. **web-app** — `tsc` + production build
