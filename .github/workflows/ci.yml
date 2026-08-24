@@ -44,6 +44,10 @@ jobs:
         working-directory: backend
         run: npm ci --no-audit --no-fund
 
+      - name: Static SQL validation (no DB needed)
+        working-directory: backend
+        run: npm run check:sql
+
       - name: Syntax check
         working-directory: backend
         run: node scripts/check-syntax.js

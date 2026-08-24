@@ -70,7 +70,7 @@ export const create = asyncHandler(async (req, res) => {
   const status = b.assigned_to ? 'assigned' : (b.status || 'open');
   const r = await query(
     `INSERT INTO issues (issue_number, project_id, wing_id, floor_id, location, category_id, priority, title, description, latitude, longitude, raised_by, assigned_to, due_date, status, remarks, client_ref)
-     VALUES ('TMP',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES ('TMP',?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [b.project_id, nullify(b.wing_id), nullify(b.floor_id), nullify(b.location), nullify(b.category_id),
     b.priority || 'medium', b.title, nullify(b.description), nullify(b.latitude), nullify(b.longitude),
     req.user.id, nullify(b.assigned_to), nullify(b.due_date), status, nullify(b.remarks), nullify(b.client_ref)]

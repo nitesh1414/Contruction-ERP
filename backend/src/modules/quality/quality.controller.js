@@ -61,7 +61,7 @@ export const createTestReport = asyncHandler(async (req, res) => {
 
   const id = await query(
     `INSERT INTO test_reports (test_number, test_type_id, project_id, wing_id, material_id, sample_date, test_date, laboratory, test_result, standard_spec, result_status, remarks, file_id, created_by)
-     VALUES ('TMP',?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+     VALUES ('TMP',?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [b.test_type_id, b.project_id, nullify(b.wing_id), nullify(b.material_id), nullify(b.sample_date), nullify(b.test_date),
     nullify(b.laboratory), nullify(b.test_result), nullify(b.standard_spec), b.result_status || 'pending', nullify(b.remarks), fileId, req.user.id]
   );

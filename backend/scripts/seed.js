@@ -437,7 +437,7 @@ async function main() {
   for (const [wingCode, desc, done, pct, labour, material, lat, lng] of progresses) {
     await conn.query(
       `INSERT INTO daily_progress (project_id, wing_id, floor_id, report_date, work_time, work_description, work_completed, percentage, labour_count, material_used, weather, remarks, latitude, longitude, created_by)
-       VALUES (?,?,? ,CURDATE(),?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,? ,CURDATE(),?,?,?,?,?,?,?,?,?,?,?)`,
       [project1, wingId.get(wingCode === 'Wing A' ? 'A' : wingCode === 'Wing B' ? 'B' : 'C'), null,
        '17:00:00', desc, done, pct, labour, material, 'Clear', 'Progress on track', lat, lng, userId.get('engineer@constructionerp.com')]);
   }

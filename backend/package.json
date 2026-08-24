@@ -16,7 +16,8 @@
     "db:setup": "node scripts/migrate.js && node scripts/seed.js",
     "db:reset": "node scripts/migrate.js --drop && node scripts/seed.js",
     "smoke": "node scripts/smoke.js",
-    "check": "node scripts/check-syntax.js"
+    "check": "node scripts/check-syntax.js",
+    "check:sql": "node scripts/sql-lint/seed-dry-run.mjs && node scripts/sql-lint/app-queries.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -32,5 +33,8 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "node-sql-parser": "^5.4.0"
   }
 }
