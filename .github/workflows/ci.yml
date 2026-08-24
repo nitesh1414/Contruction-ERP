@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+env:
+  DB_HOST: 127.0.0.1
+  DB_PORT: 3306
+  DB_USER: root
+  DB_PASSWORD: root
+  DB_NAME: construction_erp
+  SEED_ADMIN_EMAIL: admin@constructionerp.com
+  SEED_ADMIN_PASSWORD: Admin@123
+
+jobs:
+  backend:
+    name: Backend (Express + MySQL 8)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: construction_erp
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci --no-audit --no-fund
+
+      - name: Syntax check
+        working-directory: backend
+        run: node scripts/check-syntax.js
+
+      - name: Migrate schema
+        working-directory: backend
+        run: node scripts/migrate.js
+
+      - name: Seed database
+        working-directory: backend
+        run: node scripts/seed.js
+
+      - name: Start API
+        working-directory: backend
+        run: |
+          npm start > server.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4000/api/health > /dev/null 2>&1; then
+              echo "API is up"; exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed to start"; cat server.log; exit 1
+
+      - name: Run API smoke tests
+        working-directory: backend
+        run: node scripts/smoke.js
+
+      - name: Idempotency re-run (migrate again must succeed)
+        working-directory: backend
+        run: node scripts/migrate.js
+
+  web-app:
+    name: Web App (Vite build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-app/package-lock.json
+      - name: Install deps
+        working-directory: web-app
+        run: npm ci --no-audit --no-fund
+      - name: Type-check + build
+        working-directory: web-app
+        run: npm run build
+
+  admin-panel:
+    name: Admin Panel (Vite build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: admin-panel/package-lock.json
+      - name: Install deps
+        working-directory: admin-panel
+        run: npm ci --no-audit --no-fund
+      - name: Type-check + build
+        working-directory: admin-panel
+        run: npm run build
+
+  mobile:
+    name: Mobile (Expo type-check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Install deps
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript check
+        working-directory: mobile
+        run: npx tsc --noEmit
