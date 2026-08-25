@@ -95,6 +95,7 @@ cd backend && npm run smoke      # 16 automated checks against a live API + MySQ
 
 | Document | Contents |
 |---|---|
+| [docs/USER_MANUAL.md](docs/USER_MANUAL.md) / [PDF](docs/Construction-ERP-User-Manual.pdf) | **User manual** — every screen of all 3 apps + step-by-step project flow |
 | [docs/INSTALLATION.md](docs/INSTALLATION.md) | Full installation guide — prerequisites, per-app setup, env variables |
 | [docs/DATABASE.md](docs/DATABASE.md) | Database setup, schema reference (55 tables), migrations & seeding |
 | [docs/API.md](docs/API.md) | REST API reference — auth, every module, query params, multipart uploads |
