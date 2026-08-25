@@ -46,9 +46,11 @@ const MODULE_ACTIONS = {
   attendance: ['view', 'create', 'edit', 'delete', 'export'],
   sales: ['view', 'create', 'edit', 'delete', 'export'],
   documents: ['view', 'create', 'edit', 'delete', 'export', 'upload', 'download'],
+  documents: ['view', 'create', 'edit', 'delete', 'export', 'upload', 'download'],
   notifications: ['view', 'create', 'edit'],
   reports: ['view', 'export'],
   admin: ['view', 'export'],
+  hrms: ['view', 'create', 'edit', 'delete', 'approve', 'export'],
 };
 
 
@@ -137,6 +139,8 @@ const ROLE_PERMS = {
     billing: ['view', 'create', 'edit', 'delete', 'export'],
     sales: ['view', 'export'],
     attendance: ['view', 'export'], workers: ['view'],
+    hrms: ['view', 'create', 'edit', 'approve', 'export'],
+    petty_cash: ['view', 'create', 'edit', 'delete', 'export'],
     boq: ['view', 'export'], materials: ['view'],
     documents: ['view', 'download'],
     notifications: ['view'], reports: ['view', 'export'],

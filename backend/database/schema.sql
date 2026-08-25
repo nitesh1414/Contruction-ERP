@@ -1133,3 +1133,157 @@ JOIN materials m ON m.id = st.material_id
 GROUP BY p.id, p.name, m.id, m.name, m.code, m.unit, m.min_stock_level;
 
 SET FOREIGN_KEY_CHECKS = 1;
+-- ---------------------------------------------------------------------------
+-- 17. Petty Cash (site-level cash: top-up -> expense -> replenish)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS petty_cash_entries (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  project_id      BIGINT UNSIGNED NOT NULL,
+  wing_id         BIGINT UNSIGNED NULL,
+  txn_type        ENUM('topup','expense','replenish') NOT NULL DEFAULT 'expense',
+  category        VARCHAR(40) NULL,
+  amount          DECIMAL(12,2) NOT NULL DEFAULT 0,
+  txn_date        DATE NOT NULL,
+  description     VARCHAR(255) NULL,
+  paid_to         VARCHAR(120) NULL,
+  received_by     VARCHAR(120) NULL,
+  receipt_file_id BIGINT UNSIGNED NULL,
+  remarks         TEXT NULL,
+  created_by      BIGINT UNSIGNED NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_pce_proj   (project_id, txn_date),
+  INDEX idx_pce_cat    (project_id, category),
+  INDEX idx_pce_type   (project_id, txn_type),
+  CONSTRAINT fk_pce_proj    FOREIGN KEY (project_id)      REFERENCES projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pce_wing    FOREIGN KEY (wing_id)         REFERENCES wings(id)    ON DELETE SET NULL,
+  CONSTRAINT fk_pce_user    FOREIGN KEY (created_by)      REFERENCES users(id)    ON DELETE SET NULL,
+  CONSTRAINT fk_pce_receipt FOREIGN KEY (receipt_file_id) REFERENCES file_uploads(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------------
+-- 18. HRMS (employees + leave + salary structure + payroll)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS hrms_employees (
+  id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  employee_code    VARCHAR(40) NOT NULL UNIQUE,
+  name             VARCHAR(150) NOT NULL,
+  email            VARCHAR(120) NULL,
+  phone            VARCHAR(20) NULL,
+  date_of_birth    DATE NULL,
+  date_of_joining  DATE NULL,
+  department       VARCHAR(80) NULL,
+  designation      VARCHAR(80) NULL,
+  project_id       BIGINT UNSIGNED NULL,
+  wing_id          BIGINT UNSIGNED NULL,
+  bank_account     VARCHAR(40) NULL,
+  pan_number       VARCHAR(15) NULL,
+  aadhaar_number   VARCHAR(20) NULL,
+  address          VARCHAR(255) NULL,
+  gender           ENUM('male','female','other') NULL,
+  employment_type  ENUM('permanent','contract','probation','intern') NOT NULL DEFAULT 'permanent',
+  status           ENUM('active','on_leave','resigned','terminated') NOT NULL DEFAULT 'active',
+  user_id          BIGINT UNSIGNED NULL,
+  remarks          TEXT NULL,
+  is_active        TINYINT(1) NOT NULL DEFAULT 1,
+  created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_emp_proj (project_id),
+  INDEX idx_emp_dept (department),
+  INDEX idx_emp_st   (status),
+  CONSTRAINT fk_emp_proj FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+  CONSTRAINT fk_emp_wing FOREIGN KEY (wing_id)    REFERENCES wings(id)    ON DELETE SET NULL,
+  CONSTRAINT fk_emp_user FOREIGN KEY (user_id)    REFERENCES users(id)    ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS hrms_leave_types (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(60) NOT NULL,
+  code          VARCHAR(20) NOT NULL UNIQUE,
+  annual_quota  INT NOT NULL DEFAULT 0,
+  is_paid       TINYINT(1) NOT NULL DEFAULT 1,
+  color_code    VARCHAR(10) NULL,
+  description   VARCHAR(255) NULL,
+  is_active     TINYINT(1) NOT NULL DEFAULT 1,
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS hrms_leave_requests (
+  id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  employee_id       BIGINT UNSIGNED NOT NULL,
+  leave_type_id     BIGINT UNSIGNED NOT NULL,
+  from_date         DATE NOT NULL,
+  to_date           DATE NOT NULL,
+  total_days        DECIMAL(4,1) NOT NULL DEFAULT 0,
+  reason            VARCHAR(255) NULL,
+  status            ENUM('pending','approved','rejected','cancelled') NOT NULL DEFAULT 'pending',
+  applied_on        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  decided_by        BIGINT UNSIGNED NULL,
+  decided_on        DATETIME NULL,
+  decision_remarks  VARCHAR(255) NULL,
+  created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_lr_emp (employee_id, from_date),
+  INDEX idx_lr_lt  (leave_type_id),
+  INDEX idx_lr_st  (status),
+  CONSTRAINT fk_lr_emp FOREIGN KEY (employee_id)   REFERENCES hrms_employees(id)  ON DELETE CASCADE,
+  CONSTRAINT fk_lr_lt  FOREIGN KEY (leave_type_id) REFERENCES hrms_leave_types(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS hrms_salary_structures (
+  id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  employee_id       BIGINT UNSIGNED NOT NULL,
+  effective_from    DATE NOT NULL,
+  basic             DECIMAL(10,2) NOT NULL DEFAULT 0,
+  hra               DECIMAL(10,2) NOT NULL DEFAULT 0,
+  da                DECIMAL(10,2) NOT NULL DEFAULT 0,
+  special_allowance DECIMAL(10,2) NOT NULL DEFAULT 0,
+  other_allowance   DECIMAL(10,2) NOT NULL DEFAULT 0,
+  pf_employee       DECIMAL(10,2) NOT NULL DEFAULT 0,
+  pf_employer       DECIMAL(10,2) NOT NULL DEFAULT 0,
+  esic_employee     DECIMAL(10,2) NOT NULL DEFAULT 0,
+  esic_employer     DECIMAL(10,2) NOT NULL DEFAULT 0,
+  professional_tax  DECIMAL(10,2) NOT NULL DEFAULT 0,
+  remarks           VARCHAR(255) NULL,
+  is_active         TINYINT(1) NOT NULL DEFAULT 1,
+  created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_ss_emp (employee_id, effective_from),
+  CONSTRAINT fk_ss_emp FOREIGN KEY (employee_id) REFERENCES hrms_employees(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS hrms_payroll (
+  id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  employee_id        BIGINT UNSIGNED NOT NULL,
+  payroll_month      CHAR(7) NOT NULL,
+  total_working_days INT NOT NULL DEFAULT 0,
+  paid_days          DECIMAL(4,1) NOT NULL DEFAULT 0,
+  lop_days           DECIMAL(4,1) NOT NULL DEFAULT 0,
+  basic_pay          DECIMAL(10,2) NOT NULL DEFAULT 0,
+  hra_pay            DECIMAL(10,2) NOT NULL DEFAULT 0,
+  da_pay             DECIMAL(10,2) NOT NULL DEFAULT 0,
+  special_pay        DECIMAL(10,2) NOT NULL DEFAULT 0,
+  other_pay          DECIMAL(10,2) NOT NULL DEFAULT 0,
+  gross_pay          DECIMAL(12,2) NOT NULL DEFAULT 0,
+  pf_deduction       DECIMAL(10,2) NOT NULL DEFAULT 0,
+  esic_deduction     DECIMAL(10,2) NOT NULL DEFAULT 0,
+  professional_tax   DECIMAL(10,2) NOT NULL DEFAULT 0,
+  income_tax         DECIMAL(10,2) NOT NULL DEFAULT 0,
+  other_deductions   DECIMAL(10,2) NOT NULL DEFAULT 0,
+  total_deductions   DECIMAL(12,2) NOT NULL DEFAULT 0,
+  net_pay            DECIMAL(12,2) NOT NULL DEFAULT 0,
+  payment_status     ENUM('pending','paid','partial') NOT NULL DEFAULT 'pending',
+  paid_amount        DECIMAL(12,2) NOT NULL DEFAULT 0,
+  payment_date       DATE NULL,
+  payment_reference  VARCHAR(60) NULL,
+  remarks            VARCHAR(255) NULL,
+  generated_by       BIGINT UNSIGNED NULL,
+  generated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_payroll (employee_id, payroll_month),
+  INDEX idx_payroll_month (payroll_month),
+  CONSTRAINT fk_pay_emp  FOREIGN KEY (employee_id)  REFERENCES hrms_employees(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pay_user FOREIGN KEY (generated_by) REFERENCES users(id)          ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+

@@ -39,8 +39,9 @@ const NAV: NavGroup[] = [
       { to: '/materials', label: 'Materials & Inventory', icon: '🧱', perm: 'materials.view' },
       { to: '/boq', label: 'BOQ', icon: '📑', perm: 'boq.view' },
       { to: '/billing', label: 'Payments', icon: '💰', perm: 'billing.view' },
+      { to: '/petty-cash', label: 'Petty Cash', icon: '💵', perm: 'billing.view' },
       { to: '/sales', label: 'CRM & Sales', icon: '🏠', perm: 'sales.view' },
-      { to: '/workforce', label: 'HR & Payroll', icon: '🧑‍💼', perm: 'workers.view' },
+      { to: '/hrms', label: 'HR & Payroll', icon: '🧑‍💼', perm: 'hrms.view' },
     ],
   },
   {

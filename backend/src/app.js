@@ -29,6 +29,8 @@ import reportsRoutes from './modules/reports/reports.routes.js';
 import adminRoutes from './modules/admin/admin.routes.js';
 import filesRoutes from './modules/files/files.routes.js';
 import equipmentRoutes from './modules/equipment/equipment.routes.js';
+import pettyCashRoutes from './modules/petty-cash/petty-cash.routes.js';
+import hrmsRoutes from './modules/hrms/hrms.routes.js';
 
 export function createApp() {
   const app = express();
@@ -80,6 +82,8 @@ export function createApp() {
   app.use('/api/admin', adminRoutes);
   app.use('/api/files', filesRoutes);
   app.use('/api/equipment', equipmentRoutes);
+  app.use('/api/petty-cash', pettyCashRoutes);
+  app.use('/api/hrms', hrmsRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
