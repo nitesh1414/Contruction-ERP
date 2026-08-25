@@ -7,9 +7,7 @@ import type { NotificationItem } from '../api/types';
 interface NavItem { to: string; label: string; icon: string; perm?: string; }
 interface NavGroup { section: string; tagline: string; items: NavItem[]; }
 
-// Sidebar structured as the 11 module areas typical of a construction
-// management suite — names describe functionality, not any particular
-// product. Internal Navigation restructure to make every area findable.
+// Sidebar grouped by work-area so every module is findable.
 const NAV: NavGroup[] = [
   {
     section: 'Site Operations',
@@ -24,7 +22,7 @@ const NAV: NavGroup[] = [
   },
   {
     section: 'Project Management',
-    tagline: 'Plan, track and verify the work',
+    tagline: 'Tasks, drawings, quality and issues',
     items: [
       { to: '/milestones', label: 'Tasks & Milestones', icon: '🎯', perm: 'milestones.view' },
       { to: '/drawings', label: 'Drawings', icon: '📐', perm: 'drawings.view' },
@@ -135,12 +133,12 @@ function NotificationsBell() {
 }
 
 const PAGE_TITLES: Record<string, string> = {
-  '/': 'Dashboard', '/projects': 'Projects', '/progress': 'Daily Worksheet', '/milestones': 'Tasks & Milestones',
+  '/': 'Dashboard', '/projects': 'Projects', '/progress': 'Daily Progress', '/milestones': 'Tasks & Milestones',
   '/attendance': 'Attendance', '/equipment': 'Equipment',
   '/drawings': 'Drawings', '/issues': 'Issues & Snags', '/inspections': 'Inspections', '/test-reports': 'Test Reports',
-  '/documents': 'Documents & Drawings', '/materials': 'Material & Inventory', '/boq': 'Bill of Quantities',
-  '/billing': 'Payments', '/petty-cash': 'Petty Cash', '/sales': 'CRM & Sales',
-  '/workforce': 'HRMS', '/reports': 'Reports & Dashboards', '/profile': 'My Profile',
+  '/documents': 'Documents', '/materials': 'Materials & Inventory', '/boq': 'Bill of Quantities',
+  '/billing': 'Payments', '/sales': 'CRM & Sales',
+  '/workforce': 'HR & Payroll', '/reports': 'Reports & Dashboards', '/profile': 'My Profile',
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
