@@ -10,6 +10,9 @@ const NAV = [
   { section: 'Master Data', tagline: 'Configure the operating model' },
   { to: '/projects', label: 'Projects & Wings', icon: '🏗️', perm: 'projects.view' },
   { to: '/masters', label: 'Masters', icon: '🗂️', perm: null },
+  { section: 'Back-office modules', tagline: 'Operated from the project-team app' },
+  { to: '/hrms', label: 'HR & Payroll', icon: '🧑‍💼', perm: 'hrms.view' },
+  { to: '/petty-cash', label: 'Petty Cash', icon: '💵', perm: 'hrms.view' },
   { section: 'System', tagline: 'Watch it all run' },
   { to: '/audit-logs', label: 'Audit Logs', icon: '📜', perm: 'admin.view' },
   { to: '/notifications', label: 'Broadcast', icon: '📣', perm: 'notifications.create' },
@@ -18,6 +21,7 @@ const NAV = [
 const TITLES: Record<string, string> = {
   '/': 'Admin Dashboard', '/users': 'User Management', '/roles': 'Roles & Permissions',
   '/projects': 'Projects & Wings', '/masters': 'Master Data',
+  '/hrms': 'HR & Payroll', '/petty-cash': 'Petty Cash',
   '/audit-logs': 'Audit Logs', '/notifications': 'Broadcast Center',
 };
 
