@@ -6,7 +6,7 @@ import {
 import { useFetch } from '../hooks/useFetch';
 import { Badge, StatCard, fmtDate, fmtMoney } from '../components/ui';
 
-const COLORS = ['#e8651a', '#2277cc', '#1a9e5c', '#d9930d', '#d33c3c', '#7b4bd6'];
+const COLORS = ['#2563eb', '#06b6d4', '#0ea878', '#e79a09', '#e24545', '#7c3aed'];
 
 const STATUS_LABEL: Record<string, string> = {
   planning: 'Planning', in_progress: 'In Progress', on_hold: 'On Hold', completed: 'Completed', cancelled: 'Cancelled',
@@ -30,14 +30,14 @@ export default function Dashboard() {
   return (
     <>
       <div className="stat-grid">
-        <StatCard icon="🏗️" label="Total Projects" value={d.projects?.total ?? 0} sub={`avg progress ${d.projects?.avgProgress ?? 0}%`} color="#fff1e8" />
-        <StatCard icon="🏢" label="Total Wings" value={d.wings?.total ?? 0} color="#e5f0fb" />
-        <StatCard icon="⚠️" label="Open Issues" value={d.issues?.open ?? 0} sub={`${d.issues?.critical ?? 0} high/critical`} color="#fdf3dc" />
-        <StatCard icon="🔍" label="Pending Inspections" value={d.inspections?.pending ?? 0} color="#e4f7ec" />
-        <StatCard icon="🧱" label="Low-Stock Materials" value={d.materials?.lowStockCount ?? 0} color="#fdeaea" />
-        <StatCard icon="🏠" label="Units Sold" value={d.sales?.unitsSold ?? 0} sub={`collection ${fmtMoney(d.sales?.received)}`} color="#f0eafd" />
-        <StatCard icon="👷" label="Pending Labour Payment" value={fmtMoney(d.payments?.labour?.amount)} sub={`${d.payments?.labour?.count ?? 0} payments`} color="#fdf3dc" />
-        <StatCard icon="💰" label="Vendor Dues" value={fmtMoney(d.payments?.vendors?.amount)} sub="unpaid bills" color="#e5f0fb" />
+        <StatCard icon="🏗️" label="Total Projects" value={d.projects?.total ?? 0} sub={`avg progress ${d.projects?.avgProgress ?? 0}%`} color="#e8f0fe" />
+        <StatCard icon="🏢" label="Total Wings" value={d.wings?.total ?? 0} color="#e0f2fe" />
+        <StatCard icon="⚠️" label="Open Issues" value={d.issues?.open ?? 0} sub={`${d.issues?.critical ?? 0} high/critical`} color="#fef3d8" />
+        <StatCard icon="🔍" label="Pending Inspections" value={d.inspections?.pending ?? 0} color="#dcfcee" />
+        <StatCard icon="🧱" label="Low-Stock Materials" value={d.materials?.lowStockCount ?? 0} color="#fee8e8" />
+        <StatCard icon="🏠" label="Units Sold" value={d.sales?.unitsSold ?? 0} sub={`collection ${fmtMoney(d.sales?.received)}`} color="#f1e9fe" />
+        <StatCard icon="👷" label="Pending Labour Payment" value={fmtMoney(d.payments?.labour?.amount)} sub={`${d.payments?.labour?.count ?? 0} payments`} color="#fef3d8" />
+        <StatCard icon="💰" label="Vendor Dues" value={fmtMoney(d.payments?.vendors?.amount)} sub="unpaid bills" color="#e0f2fe" />
       </div>
 
       <div className="grid-12">
@@ -51,15 +51,15 @@ export default function Dashboard() {
                 <AreaChart data={progressTrend} margin={{ top: 8, right: 16, bottom: 0, left: -18 }}>
                   <defs>
                     <linearGradient id="gPct" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#e8651a" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#e8651a" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#eef1f6" />
                   <XAxis dataKey="date" fontSize={11} stroke="#8296ab" />
                   <YAxis fontSize={11} stroke="#8296ab" domain={[0, 100]} unit="%" />
                   <Tooltip />
-                  <Area type="monotone" dataKey="pct" name="Avg progress %" stroke="#e8651a" strokeWidth={2.2} fill="url(#gPct)" />
+                  <Area type="monotone" dataKey="pct" name="Avg progress %" stroke="#2563eb" strokeWidth={2.2} fill="url(#gPct)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : <div className="empty">No progress entries yet</div>}
@@ -101,7 +101,7 @@ export default function Dashboard() {
                   <Tooltip formatter={(v: any) => `₹${Number(v).toFixed(1)} L`} />
                   <Legend iconSize={9} wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="Budget" fill="#c9d4e3" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Actual" fill="#e8651a" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Actual" fill="#2563eb" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <div className="empty">No cost data</div>}
@@ -159,7 +159,7 @@ export default function Dashboard() {
               {(d.milestones || []).map((m: any) => (
                 <StatCard key={m.status} icon={{ pending: '⏳', in_progress: '🚧', completed: '✅', delayed: '⏰' }[m.status as string] || '•'}
                   label={STATUS_LABEL[m.status] || m.status} value={m.count}
-                  color={{ pending: '#eef1f5', in_progress: '#e5f0fb', completed: '#e4f7ec', delayed: '#fdeaea' }[m.status as string]} />
+                  color={{ pending: '#eef1f5', in_progress: '#e0f2fe', completed: '#dcfcee', delayed: '#fee8e8' }[m.status as string]} />
               ))}
               {(!d.milestones || !d.milestones.length) && <div className="empty">No milestones</div>}
             </div>

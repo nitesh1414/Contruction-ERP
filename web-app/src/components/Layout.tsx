@@ -155,6 +155,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`app-shell ${sidebarOpen ? 'sidebar-open' : ''}`}>
+      <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
       <aside className="sidebar">
         <div className="brand">
           <img src="/logo.svg" alt="ERP" />

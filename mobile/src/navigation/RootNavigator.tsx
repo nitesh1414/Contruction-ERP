@@ -26,7 +26,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tabs = createBottomTabNavigator<MainTabParamList>();
 
 function TabIcon({ glyph, focused }: { glyph: string; focused: boolean }) {
-  return <Text style={{ fontSize: 19, opacity: focused ? 1 : 0.55 }}>{glyph}</Text>;
+  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.6 }}>{glyph}</Text>;
 }
 
 function QueueBadge() {
@@ -59,10 +59,11 @@ function MainTabs() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.navy },
         headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: '700', fontSize: 17 },
+        headerTitleStyle: { fontWeight: '700', fontSize: 19 },
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.textFaint,
-        tabBarStyle: { height: 60, paddingBottom: 8, paddingTop: 4 },
+        tabBarStyle: { height: 68, paddingBottom: 10, paddingTop: 5 },
+        tabBarLabelStyle: { fontSize: 12.5, fontWeight: '600' },
       }}
     >
       <Tabs.Screen

@@ -69,9 +69,9 @@ export default function Billing() {
   return (
     <>
       <div className="stat-grid" style={{ marginBottom: 16 }}>
-        <StatCard icon="💰" label="Total Cost" value={fmtMoney(totalCost)} color="#fff1e8" />
-        <StatCard icon="✅" label="Paid" value={fmtMoney(totalPaid)} color="#e4f7ec" />
-        <StatCard icon="⏳" label="Pending Payments" value={fmtMoney(totalPending)} color="#fdeaea" />
+        <StatCard icon="💰" label="Total Cost" value={fmtMoney(totalCost)} color="#e8f0fe" />
+        <StatCard icon="✅" label="Paid" value={fmtMoney(totalPaid)} color="#dcfcee" />
+        <StatCard icon="⏳" label="Pending Payments" value={fmtMoney(totalPending)} color="#fee8e8" />
         {chartData.length > 0 && (
           <div className="card stat-card" style={{ gridColumn: 'span 2', minWidth: 300 }}>
             <div style={{ width: '100%' }}>
@@ -82,7 +82,7 @@ export default function Billing() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#eef1f6" />
                     <XAxis dataKey="name" fontSize={10} /><YAxis fontSize={10} />
                     <Tooltip formatter={(v: any) => `₹${v} L`} /><Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
-                    <Bar dataKey="Consumables" stackId="a" fill="#e8651a" /><Bar dataKey="Equipment" stackId="a" fill="#2277cc" /><Bar dataKey="Labour" stackId="a" fill="#1a9e5c" />
+                    <Bar dataKey="Consumables" stackId="a" fill="#2563eb" /><Bar dataKey="Equipment" stackId="a" fill="#06b6d4" /><Bar dataKey="Labour" stackId="a" fill="#0ea878" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

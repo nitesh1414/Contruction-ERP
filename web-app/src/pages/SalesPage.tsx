@@ -18,10 +18,10 @@ export default function SalesPage() {
   return (
     <>
       <div className="stat-grid" style={{ marginBottom: 16 }}>
-        <StatCard icon="🏠" label="Units Sold" value={totals?.units_sold ?? 0} sub={`${tunnels.available ?? 0} available`} color="#f0eafd" />
-        <StatCard icon="💰" label="Sales Value" value={fmtMoney(totals?.value)} color="#e5f0fb" />
-        <StatCard icon="✅" label="Collected" value={fmtMoney(totals?.received)} color="#e4f7ec" />
-        <StatCard icon="⏳" label="Pending Collections" value={fmtMoney(totals?.pending)} color="#fdeaea" />
+        <StatCard icon="🏠" label="Units Sold" value={totals?.units_sold ?? 0} sub={`${tunnels.available ?? 0} available`} color="#f1e9fe" />
+        <StatCard icon="💰" label="Sales Value" value={fmtMoney(totals?.value)} color="#e0f2fe" />
+        <StatCard icon="✅" label="Collected" value={fmtMoney(totals?.received)} color="#dcfcee" />
+        <StatCard icon="⏳" label="Pending Collections" value={fmtMoney(totals?.pending)} color="#fee8e8" />
         {can('sales.export') && (
           <div className="stat-card">
             <div className="ic" style={{ background: 'var(--brand-soft)' }}>📑</div>

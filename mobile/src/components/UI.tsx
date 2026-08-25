@@ -67,7 +67,7 @@ export function Button({
     <TouchableOpacity
       style={[
         styles.button,
-        small && { paddingVertical: 7, paddingHorizontal: 12 },
+        small && { paddingVertical: 9, paddingHorizontal: 14 },
         { backgroundColor: bg, borderWidth: variant === 'ghost' ? 1 : 0, borderColor: colors.brand },
         (disabled || loading) && { opacity: 0.55 },
       ]}
@@ -75,7 +75,7 @@ export function Button({
       disabled={disabled || loading}
       activeOpacity={0.8}
     >
-      {loading ? <ActivityIndicator color={fg} size="small" /> : <Text style={[styles.buttonText, { color: fg }, small && { fontSize: 13 }]}>{title}</Text>}
+      {loading ? <ActivityIndicator color={fg} size="small" /> : <Text style={[styles.buttonText, { color: fg }, small && { fontSize: 14.5 }]}>{title}</Text>}
     </TouchableOpacity>
   );
 }
@@ -118,7 +118,7 @@ export function PickerField({
   return (
     <>
       <TouchableOpacity style={styles.pickerButton} onPress={() => setOpen(true)} activeOpacity={0.8}>
-        <Text style={{ color: selected ? colors.text : colors.textFaint, fontSize: 14, flex: 1 }} numberOfLines={1}>
+        <Text style={{ color: selected ? colors.text : colors.textFaint, fontSize: 15.5, flex: 1 }} numberOfLines={1}>
           {selected ? selected.label : placeholder}
         </Text>
         <Text style={{ color: colors.textFaint }}>▾</Text>
@@ -135,7 +135,7 @@ export function PickerField({
                     setOpen(false);
                   }}
                 >
-                  <Text style={{ color: colors.textFaint, fontSize: 14 }}>— None —</Text>
+                  <Text style={{ color: colors.textFaint, fontSize: 15.5 }}>— None —</Text>
                 </TouchableOpacity>
                 {options.map((o) => (
                   <TouchableOpacity
@@ -146,7 +146,7 @@ export function PickerField({
                       setOpen(false);
                     }}
                   >
-                    <Text style={{ color: colors.text, fontSize: 14 }}>{o.label}</Text>
+                    <Text style={{ color: colors.text, fontSize: 15.5 }}>{o.label}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -161,9 +161,9 @@ export function PickerField({
 export function EmptyState({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View style={{ alignItems: 'center', paddingVertical: 44 }}>
-      <Text style={{ fontSize: 34, marginBottom: 8 }}>🗂️</Text>
-      <Text style={{ fontSize: 15, fontWeight: '600', color: colors.textSoft }}>{title}</Text>
-      {subtitle ? <Text style={{ fontSize: 13, color: colors.textFaint, marginTop: 4, textAlign: 'center' }}>{subtitle}</Text> : null}
+      <Text style={{ fontSize: 42, marginBottom: 10 }}>🗂️</Text>
+      <Text style={{ fontSize: 16.5, fontWeight: '600', color: colors.textSoft }}>{title}</Text>
+      {subtitle ? <Text style={{ fontSize: 14.5, color: colors.textFaint, marginTop: 4, textAlign: 'center' }}>{subtitle}</Text> : null}
     </View>
   );
 }
@@ -179,7 +179,7 @@ export function StatTile({ label, value, accent, onPress }: { label: string; val
 
 export function ErrorText({ message }: { message: string | null }) {
   if (!message) return null;
-  return <Text style={{ color: colors.danger, fontSize: 13, marginBottom: 10 }}>{message}</Text>;
+  return <Text style={{ color: colors.danger, fontSize: 14.5, marginBottom: 10 }}>{message}</Text>;
 }
 
 export function LoadingBlock() {
@@ -194,58 +194,58 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 15,
+    padding: 16,
+    marginBottom: 13,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  sectionSubtitle: { fontSize: 12.5, color: colors.textFaint, marginTop: 2 },
-  badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20, alignSelf: 'flex-start' },
-  badgeText: { fontSize: 11, fontWeight: '600', textTransform: 'capitalize' },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+  sectionSubtitle: { fontSize: 13.5, color: colors.textFaint, marginTop: 2 },
+  badge: { paddingHorizontal: 11, paddingVertical: 5, borderRadius: 20, alignSelf: 'flex-start' },
+  badgeText: { fontSize: 12, fontWeight: '600', textTransform: 'capitalize' },
   button: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 10,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonText: { fontSize: 14.5, fontWeight: '700' },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: colors.textSoft, marginBottom: 6 },
+  buttonText: { fontSize: 16, fontWeight: '700' },
+  fieldLabel: { fontSize: 14, fontWeight: '600', color: colors.textSoft, marginBottom: 7 },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.card,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15.5,
     color: colors.text,
   },
   pickerButton: {
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.card,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  pickerBackdrop: { flex: 1, backgroundColor: 'rgba(15,27,45,0.45)', justifyContent: 'center', padding: 28 },
-  pickerSheet: { backgroundColor: colors.card, borderRadius: 14, overflow: 'hidden' },
-  pickerOption: { paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  pickerBackdrop: { flex: 1, backgroundColor: 'rgba(10,30,70,0.5)', justifyContent: 'center', padding: 28 },
+  pickerSheet: { backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden' },
+  pickerOption: { paddingVertical: 15, paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   statTile: {
     flex: 1,
     backgroundColor: colors.card,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
+    borderRadius: 15,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
   },
-  statValue: { fontSize: 22, fontWeight: '800' },
-  statLabel: { fontSize: 11, color: colors.textFaint, marginTop: 3, textAlign: 'center' },
+  statValue: { fontSize: 25, fontWeight: '800' },
+  statLabel: { fontSize: 12.5, color: colors.textFaint, marginTop: 4, textAlign: 'center' },
 });

@@ -3,7 +3,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend, AreaChart, A
 import { useFetch } from '../hooks/useFetch';
 import { StatCard, DataTable, Badge, fmtMoney } from '../components/ui';
 
-const COLORS = ['#7b4bd6', '#2277cc', '#1a9e5c', '#d9930d', '#d33c3c', '#e8651a'];
+const COLORS = ['#7c3aed', '#06b6d4', '#0ea878', '#e79a09', '#e24545', '#2563eb'];
 
 export default function Dashboard() {
   const { data: overview } = useFetch<any>('/dashboard/overview');
@@ -18,12 +18,12 @@ export default function Dashboard() {
   return (
     <>
       <div className="stat-grid">
-        <StatCard icon="👤" label="Total Users" value={users?.pagination?.total ?? 0} color="#f0eafd" />
-        <StatCard icon="🛡️" label="Roles" value={roles?.length ?? 0} color="#e5f0fb" />
-        <StatCard icon="🏗️" label="Projects" value={overview?.projects?.total ?? projects?.pagination?.total ?? 0} color="#fff1e8" />
-        <StatCard icon="🏢" label="Wings" value={overview?.wings?.total ?? 0} color="#e4f7ec" />
-        <StatCard icon="💰" label="Total Budget" value={fmtMoney(overview?.projects?.totalBudget)} color="#fdf3dc" />
-        <StatCard icon="⚠️" label="Open Issues" value={overview?.issues?.open ?? 0} color="#fdeaea" />
+        <StatCard icon="👤" label="Total Users" value={users?.pagination?.total ?? 0} color="#f1e9fe" />
+        <StatCard icon="🛡️" label="Roles" value={roles?.length ?? 0} color="#e0f2fe" />
+        <StatCard icon="🏗️" label="Projects" value={overview?.projects?.total ?? projects?.pagination?.total ?? 0} color="#e8f0fe" />
+        <StatCard icon="🏢" label="Wings" value={overview?.wings?.total ?? 0} color="#dcfcee" />
+        <StatCard icon="💰" label="Total Budget" value={fmtMoney(overview?.projects?.totalBudget)} color="#fef3d8" />
+        <StatCard icon="⚠️" label="Open Issues" value={overview?.issues?.open ?? 0} color="#fee8e8" />
       </div>
 
       <div className="grid-12">

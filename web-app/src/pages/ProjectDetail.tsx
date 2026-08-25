@@ -11,7 +11,7 @@ import {
 } from '../components/ui';
 import type { Wing, Floor, UnitInfo } from '../api/types';
 
-const PIE_COLORS = ['#e8651a', '#2277cc', '#1a9e5c', '#d9930d', '#d33c3c'];
+const PIE_COLORS = ['#2563eb', '#06b6d4', '#0ea878', '#e79a09', '#e24545'];
 
 export default function ProjectDetail() {
   const { id, wingId } = useParams();
@@ -208,10 +208,10 @@ function WingDashboardTab({ data }: { data: any }) {
   return (
     <div className="card-pad">
       <div className="stat-grid" style={{ marginBottom: 16 }}>
-        <StatCard icon="📈" label="Wing progress" value={`${Number(data.wing.progress).toFixed(0)}%`} color="#fff1e8" />
-        <StatCard icon="⚠️" label="Active issues" value={data.activeIssues?.length ?? 0} color="#fdf3dc" />
-        <StatCard icon="🏠" label="Units sold" value={data.salesStatus?.units_sold ?? 0} sub={fmtMoney(data.salesStatus?.value)} color="#f0eafd" />
-        <StatCard icon="💰" label="Collections" value={fmtMoney(data.salesStatus?.received)} sub={`pending ${fmtMoney(data.salesStatus?.pending)}`} color="#e4f7ec" />
+        <StatCard icon="📈" label="Wing progress" value={`${Number(data.wing.progress).toFixed(0)}%`} color="#e8f0fe" />
+        <StatCard icon="⚠️" label="Active issues" value={data.activeIssues?.length ?? 0} color="#fef3d8" />
+        <StatCard icon="🏠" label="Units sold" value={data.salesStatus?.units_sold ?? 0} sub={fmtMoney(data.salesStatus?.value)} color="#f1e9fe" />
+        <StatCard icon="💰" label="Collections" value={fmtMoney(data.salesStatus?.received)} sub={`pending ${fmtMoney(data.salesStatus?.pending)}`} color="#dcfcee" />
       </div>
       <div className="grid-2">
         <div>
@@ -286,14 +286,14 @@ function ProgressTab({ projectId }: { projectId: number }) {
           <AreaChart data={chart} margin={{ top: 10, right: 16, bottom: 0, left: -14 }}>
             <defs>
               <linearGradient id="gP" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#e8651a" stopOpacity={0.4} /><stop offset="95%" stopColor="#e8651a" stopOpacity={0.03} />
+                <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4} /><stop offset="95%" stopColor="#2563eb" stopOpacity={0.03} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#eef1f6" />
             <XAxis dataKey="date" fontSize={11} stroke="#8296ab" />
             <YAxis fontSize={11} unit="%" stroke="#8296ab" domain={[0, 100]} />
             <Tooltip />
-            <Area type="monotone" dataKey="pct" name="Progress %" stroke="#e8651a" strokeWidth={2} fill="url(#gP)" />
+            <Area type="monotone" dataKey="pct" name="Progress %" stroke="#2563eb" strokeWidth={2} fill="url(#gP)" />
           </AreaChart>
         </ResponsiveContainer>
       ) : <div className="empty">No daily progress yet for this project</div>}
