@@ -1,21 +1,13 @@
 import Constants from 'expo-constants';
 
-/**
- * API base URL resolution order:
- *  1. EXPO_PUBLIC_API_URL env var (works with `expo start`)
- *  2. app.json -> expo.extra.apiUrl
- *  3. Expo host IP (when the backend runs on the same machine as the dev server,
- *     this lets physical devices reach it automatically)
- */
 function resolveApiUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;
   if (envUrl) return envUrl.replace(/\/$/, '');
-
   const extra = Constants.expoConfig?.extra as { apiUrl?: string } | undefined;
-  if (extra?.apiUrl && !extra.apiUrl.includes('localhost')) {
-    return extra.apiUrl.replace(/\/$/, '');
+  const apiHost = extra?.apiUrl || process.env.EXPO_PUBLIC_API_HOST;
+  if (apiHost && !apiHost.includes('localhost')) {
+    return apiHost.replace(/\/$/, '');
   }
-
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
     const host = hostUri.split(':')[0];
@@ -23,9 +15,15 @@ function resolveApiUrl(): string {
       return `http://${host}:4000`;
     }
   }
-
-  return extra?.apiUrl?.replace(/\/$/, '') || 'http://localhost:4000';
+  return (apiHost || 'http://localhost:4000').replace(/\/$/, '');
 }
+
+/**
+ * Host of the web operator console (the human-facing ERP UI).
+ * Defaults to the same host as the API, on port 5173.
+ * Override with EXPO_PUBLIC_WEB_PORT if you serve the operator app elsewhere.
+ */
+export const WEB_URL = resolveApiUrl().replace(/:\d+$/, `:${process.env.EXPO_PUBLIC_WEB_PORT || '5173'}`);
 
 export const API_URL = resolveApiUrl();
 export const API_BASE = `${API_URL}/api`;

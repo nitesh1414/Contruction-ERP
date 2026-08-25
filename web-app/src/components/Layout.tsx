@@ -3,45 +3,52 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { api } from '../api/client';
 import type { NotificationItem } from '../api/types';
-import { Badge } from './ui';
 
 interface NavItem { to: string; label: string; icon: string; perm?: string; }
-interface NavGroup { section: string; items: NavItem[]; }
+interface NavGroup { section: string; tagline: string; items: NavItem[]; }
 
+// Sidebar grouped by work-area so every module is findable.
 const NAV: NavGroup[] = [
   {
-    section: 'Main',
+    section: 'Site Operations',
+    tagline: 'Day-to-day activity at the project',
     items: [
       { to: '/', label: 'Dashboard', icon: '📊' },
       { to: '/projects', label: 'Projects', icon: '🏗️', perm: 'projects.view' },
-      { to: '/progress', label: 'Daily Progress', icon: '📈', perm: 'progress.view' },
-      { to: '/milestones', label: 'Milestones', icon: '🎯', perm: 'milestones.view' },
+      { to: '/progress', label: 'Daily Progress', icon: '📋', perm: 'progress.view' },
+      { to: '/attendance', label: 'Attendance', icon: '👷', perm: 'workers.view' },
+      { to: '/equipment', label: 'Equipment', icon: '🚜', perm: 'projects.view' },
     ],
   },
   {
-    section: 'Site Management',
+    section: 'Project Management',
+    tagline: 'Tasks, drawings, quality and issues',
     items: [
+      { to: '/milestones', label: 'Tasks & Milestones', icon: '🎯', perm: 'milestones.view' },
       { to: '/drawings', label: 'Drawings', icon: '📐', perm: 'drawings.view' },
-      { to: '/issues', label: 'Issues', icon: '⚠️', perm: 'issues.view' },
       { to: '/inspections', label: 'Inspections', icon: '🔍', perm: 'inspections.view' },
       { to: '/test-reports', label: 'Test Reports', icon: '🧪', perm: 'test_reports.view' },
       { to: '/documents', label: 'Documents', icon: '📁', perm: 'documents.view' },
+      { to: '/issues', label: 'Issues / Snags', icon: '⚠️', perm: 'issues.view' },
     ],
   },
   {
-    section: 'Resources & Cost',
+    section: 'Accounts & Sales',
+    tagline: 'Costs, billing, collections and sales',
     items: [
-      { to: '/materials', label: 'Materials', icon: '🧱', perm: 'materials.view' },
-      { to: '/boq', label: 'BOQ', icon: '📋', perm: 'boq.view' },
-      { to: '/billing', label: 'Billing & Cost', icon: '💰', perm: 'billing.view' },
-      { to: '/workforce', label: 'Workforce', icon: '👷', perm: 'workers.view' },
-      { to: '/sales', label: 'Sales', icon: '🏠', perm: 'sales.view' },
+      { to: '/materials', label: 'Materials & Inventory', icon: '🧱', perm: 'materials.view' },
+      { to: '/boq', label: 'BOQ', icon: '📑', perm: 'boq.view' },
+      { to: '/billing', label: 'Payments', icon: '💰', perm: 'billing.view' },
+      { to: '/petty-cash', label: 'Petty Cash', icon: '💵', perm: 'billing.view' },
+      { to: '/sales', label: 'CRM & Sales', icon: '🏠', perm: 'sales.view' },
+      { to: '/hrms', label: 'HR & Payroll', icon: '🧑‍💼', perm: 'hrms.view' },
     ],
   },
   {
     section: 'Insights',
+    tagline: 'Reports your leads and owners read',
     items: [
-      { to: '/reports', label: 'Reports', icon: '📑', perm: 'reports.view' },
+      { to: '/reports', label: 'Reports & Dashboards', icon: '📊', perm: 'reports.view' },
     ],
   },
 ];
@@ -127,10 +134,12 @@ function NotificationsBell() {
 }
 
 const PAGE_TITLES: Record<string, string> = {
-  '/': 'Dashboard', '/projects': 'Projects', '/progress': 'Daily Progress', '/milestones': 'Milestones',
-  '/drawings': 'Drawings', '/issues': 'Issues', '/inspections': 'Inspections', '/test-reports': 'Test Reports',
+  '/': 'Dashboard', '/projects': 'Projects', '/progress': 'Daily Progress', '/milestones': 'Tasks & Milestones',
+  '/attendance': 'Attendance', '/equipment': 'Equipment',
+  '/drawings': 'Drawings', '/issues': 'Issues & Snags', '/inspections': 'Inspections', '/test-reports': 'Test Reports',
   '/documents': 'Documents', '/materials': 'Materials & Inventory', '/boq': 'Bill of Quantities',
-  '/billing': 'Billing & Cost', '/workforce': 'Workforce & Attendance', '/sales': 'Sales', '/reports': 'Reports', '/profile': 'My Profile',
+  '/billing': 'Payments', '/sales': 'CRM & Sales',
+  '/workforce': 'HR & Payroll', '/reports': 'Reports & Dashboards', '/profile': 'My Profile',
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -158,8 +167,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
       <aside className="sidebar">
         <div className="brand">
-          <img src="/logo.svg" alt="ERP" />
-          <span>Construction ERP<small>Project Tracking System</small></span>
+          <div className="logo-mark" aria-label="ERP logo">B</div>
+          <span>BuildTrack<small>Project Tracking · v1.0</small></span>
         </div>
         <nav>
           {NAV.map((group) => {
@@ -177,13 +186,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="sidebar-footer">Construction ERP v1.0<br/>React + Express + MySQL</div>
+        <div className="sidebar-footer">Connected project + workforce suite<br/>Web · Mobile · Tablet</div>
       </aside>
 
       <div className="main">
         <header className="topbar">
           <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} aria-label="Menu">☰</button>
           <div className="page-title">{title}</div>
+          <div className="topbar-search" role="search">
+            <span style={{ color: 'var(--ink-3)' }}>🔍</span>
+            <input placeholder="Search projects, tasks, materials…" aria-label="Search" />
+            <span className="hint">⌘ K</span>
+          </div>
           <div className="spacer" />
           <NotificationsBell />
           <div style={{ position: 'relative' }} ref={userMenuRef}>

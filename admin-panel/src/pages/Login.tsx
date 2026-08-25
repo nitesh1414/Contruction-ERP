@@ -31,8 +31,8 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="logo-row">
-          <img src="/logo.svg" alt="logo" />
-          <div><h1>ERP Admin Panel</h1><p className="sub" style={{ margin: 0 }}>System Administration Console</p></div>
+          <div className="logo-mark">B</div>
+          <div><h1>BuildTrack Admin</h1><p className="sub" style={{ margin: 0 }}>System Administration Console</p></div>
         </div>
         {error && <div className="auth-error">{error}</div>}
         <form onSubmit={submit}>

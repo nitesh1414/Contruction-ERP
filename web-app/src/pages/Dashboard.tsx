@@ -6,7 +6,7 @@ import {
 import { useFetch } from '../hooks/useFetch';
 import { Badge, StatCard, fmtDate, fmtMoney } from '../components/ui';
 
-const COLORS = ['#2563eb', '#06b6d4', '#0ea878', '#e79a09', '#e24545', '#7c3aed'];
+const COLORS = ['#ff5b1f', '#0d6cc4', '#0ea878', '#e79a09', '#e24545', '#7c3aed'];
 
 const STATUS_LABEL: Record<string, string> = {
   planning: 'Planning', in_progress: 'In Progress', on_hold: 'On Hold', completed: 'Completed', cancelled: 'Cancelled',
@@ -29,15 +29,26 @@ export default function Dashboard() {
 
   return (
     <>
+      <div className="hero-banner">
+        <div>
+          <h2>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'} 👋</h2>
+          <p>{d.projects?.total ?? 0} active projects · {d.sales?.unitsSold ?? 0} units sold · {d.issues?.open ?? 0} open issues. Here is the most recent activity across all modules.</p>
+        </div>
+        <div className="actions">
+          <Link to="/projects"><button className="btn cta">Projects</button></Link>
+          <Link to="/progress"><button className="btn primary">+ Daily update</button></Link>
+        </div>
+      </div>
+
       <div className="stat-grid">
-        <StatCard icon="🏗️" label="Total Projects" value={d.projects?.total ?? 0} sub={`avg progress ${d.projects?.avgProgress ?? 0}%`} color="#e8f0fe" />
-        <StatCard icon="🏢" label="Total Wings" value={d.wings?.total ?? 0} color="#e0f2fe" />
+        <StatCard icon="🏗️" label="Total Projects" value={d.projects?.total ?? 0} sub={`avg progress ${d.projects?.avgProgress ?? 0}%`} color="#fff0e6" />
+        <StatCard icon="🏢" label="Total Wings" value={d.wings?.total ?? 0} color="#e8f3fb" />
         <StatCard icon="⚠️" label="Open Issues" value={d.issues?.open ?? 0} sub={`${d.issues?.critical ?? 0} high/critical`} color="#fef3d8" />
         <StatCard icon="🔍" label="Pending Inspections" value={d.inspections?.pending ?? 0} color="#dcfcee" />
         <StatCard icon="🧱" label="Low-Stock Materials" value={d.materials?.lowStockCount ?? 0} color="#fee8e8" />
         <StatCard icon="🏠" label="Units Sold" value={d.sales?.unitsSold ?? 0} sub={`collection ${fmtMoney(d.sales?.received)}`} color="#f1e9fe" />
         <StatCard icon="👷" label="Pending Labour Payment" value={fmtMoney(d.payments?.labour?.amount)} sub={`${d.payments?.labour?.count ?? 0} payments`} color="#fef3d8" />
-        <StatCard icon="💰" label="Vendor Dues" value={fmtMoney(d.payments?.vendors?.amount)} sub="unpaid bills" color="#e0f2fe" />
+        <StatCard icon="💰" label="Vendor Dues" value={fmtMoney(d.payments?.vendors?.amount)} sub="unpaid bills" color="#e8f3fb" />
       </div>
 
       <div className="grid-12">
@@ -51,15 +62,15 @@ export default function Dashboard() {
                 <AreaChart data={progressTrend} margin={{ top: 8, right: 16, bottom: 0, left: -18 }}>
                   <defs>
                     <linearGradient id="gPct" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0.02} />
+                      <stop offset="5%" stopColor="#ff5b1f" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#ff5b1f" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#eef1f6" />
                   <XAxis dataKey="date" fontSize={11} stroke="#8296ab" />
                   <YAxis fontSize={11} stroke="#8296ab" domain={[0, 100]} unit="%" />
                   <Tooltip />
-                  <Area type="monotone" dataKey="pct" name="Avg progress %" stroke="#2563eb" strokeWidth={2.2} fill="url(#gPct)" />
+                  <Area type="monotone" dataKey="pct" name="Avg progress %" stroke="#ff5b1f" strokeWidth={2.4} fill="url(#gPct)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : <div className="empty">No progress entries yet</div>}
@@ -101,7 +112,7 @@ export default function Dashboard() {
                   <Tooltip formatter={(v: any) => `₹${Number(v).toFixed(1)} L`} />
                   <Legend iconSize={9} wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="Budget" fill="#c9d4e3" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Actual" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Actual" fill="#0d6cc4" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <div className="empty">No cost data</div>}
@@ -159,12 +170,12 @@ export default function Dashboard() {
               {(d.milestones || []).map((m: any) => (
                 <StatCard key={m.status} icon={{ pending: '⏳', in_progress: '🚧', completed: '✅', delayed: '⏰' }[m.status as string] || '•'}
                   label={STATUS_LABEL[m.status] || m.status} value={m.count}
-                  color={{ pending: '#eef1f5', in_progress: '#e0f2fe', completed: '#dcfcee', delayed: '#fee8e8' }[m.status as string]} />
+                  color={{ pending: '#eef1f5', in_progress: '#e8f3fb', completed: '#dcfcee', delayed: '#fee8e8' }[m.status as string]} />
               ))}
               {(!d.milestones || !d.milestones.length) && <div className="empty">No milestones</div>}
             </div>
             {(d.sales?.pending ?? 0) > 0 && (
-              <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: 'var(--warning-soft)', color: '#7a5b06', fontSize: 13 }}>
+              <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 10, background: 'var(--brand-soft)', color: 'var(--brand-dark)', fontSize: 13 }}>
                 💰 <strong>{fmtMoney(d.sales.pending)}</strong> pending in sales collections · <Link to="/sales" style={{ fontWeight: 600 }}>view sales →</Link>
               </div>
             )}
@@ -181,6 +192,24 @@ export default function Dashboard() {
                 </ul>
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="card col-12">
+          <div className="card-header"><h3>Module quick launch</h3>
+            <div className="actions muted" style={{ fontSize: 12 }}>Eleven module areas · click to jump straight in</div>
+          </div>
+          <div className="card-pad">
+            <div className="grid-4">
+              <div className="feature-tile"><div className="ic">🏗️</div><h4>Projects</h4><p className="desc">Project structure with wings, floors, units and progress roll-up.</p><Link to="/projects" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
+              <div className="feature-tile"><div className="ic">📋</div><h4>Daily Worksheet</h4><p className="desc">Site-recorded activity with geo-tagged photos and quantities.</p><Link to="/progress" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
+              <div className="feature-tile"><div className="ic">👷</div><h4>Attendance</h4><p className="desc">Mark labour & staff on site — wages computed from attendance.</p><Link to="/workforce" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
+              <div className="feature-tile"><div className="ic">🚜</div><h4>Equipment</h4><p className="desc">Machinery hours, breakdowns, fuel and hire billing — new.</p><Link to="/equipment" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
+              <div className="feature-tile"><div className="ic">🧱</div><h4>Materials</h4><p className="desc">POs, GRNs, consumption, returns — stock register that builds itself.</p><Link to="/materials" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
+              <div className="feature-tile"><div className="ic">🎯</div><h4>Tasks & Milestones</h4><p className="desc">Assign work with priority, drawings and target dates.</p><Link to="/milestones" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
+              <div className="feature-tile"><div className="ic">⚠️</div><h4>Issues & Snags</h4><p className="desc">Priority, assignment, photos, discussion thread, over-due alerts.</p><Link to="/issues" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
+              <div className="feature-tile"><div className="ic">🔍</div><h4>Quality</h4><p className="desc">Material test reports and on-site inspection checklists.</p><Link to="/inspections" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
+            </div>
           </div>
         </div>
       </div>

@@ -4,10 +4,11 @@ A complete, production-ready construction project tracking platform with **four 
 
 | App | Stack | Purpose |
 |---|---|---|
-| [`backend/`](backend/) | Node.js + Express + MySQL | REST API — JWT auth, RBAC, file uploads, audit trail, 55-table schema |
-| [`web-app/`](web-app/) | React 18 + Vite + TypeScript | Project teams: progress, materials, BOQ, quality, workforce, sales, reports |
+| [`backend/`](backend/) | Node.js + Express + MySQL | REST API — JWT auth, RBAC, file uploads, audit trail, 55-table schema, HR & payroll, petty cash, equipment |
+| [`web-app/`](web-app/) | React 18 + Vite + TypeScript | Project teams: progress, attendance, materials, BOQ, quality, HR & payroll, petty cash, sales, reports |
 | [`admin-panel/`](admin-panel/) | React 18 + Vite + TypeScript | Administrators: users, roles & permission matrix, master data, audit logs, broadcasts |
 | [`mobile/`](mobile/) | React Native + Expo SDK 54 | Site engineers: offline-first progress capture with camera + GPS, attendance, issues, inspections |
+| [`marketing/`](marketing/) | React 18 + Vite + TypeScript | Public landing page — original copy describing the ERP's actual capabilities |
 
 Everything runs against a single **MySQL** database — no MongoDB, no ORM (raw `mysql2` with parameterized queries), no monolith: the API is fully independent and each frontend talks to it over REST.
 

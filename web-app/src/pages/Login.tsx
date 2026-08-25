@@ -35,10 +35,10 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-card">
         <div className="logo-row">
-          <img src="/logo.svg" alt="logo" />
+          <div className="logo-mark">B</div>
           <div>
-            <h1>Construction ERP</h1>
-            <p className="sub" style={{ margin: 0 }}>Project Tracking System</p>
+            <h1>BuildTrack</h1>
+            <p className="sub" style={{ margin: 0 }}>Construction Project Tracking</p>
           </div>
         </div>
         {error && <div className="auth-error">{error}</div>}

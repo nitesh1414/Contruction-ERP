@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import dayjs from 'dayjs';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { subscribeQueue } from '../offline/queue';
+import { WEB_URL } from '../config';
 import { colors } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -86,6 +87,22 @@ export default function MoreScreen() {
           <MenuRow glyph="🔍" label="Inspections" sub="Quality & safety checklists" onPress={() => navigation.navigate('Inspections')} />
         ) : null}
         <MenuRow glyph="🔔" label="Notifications" sub="Approvals, assignments & alerts" onPress={() => navigation.navigate('Notifications')} />
+        {can('hrms', 'view') && (
+          <MenuRow
+            glyph="🧑‍💼"
+            label="HR & Payroll"
+            sub="Employee records, leave, salary & payroll"
+            onPress={() => Linking.openURL(`${WEB_URL}/hrms`).catch(() => Alert.alert('Open web app', 'Sign in to the web app to manage HR & payroll.'))}
+          />
+        )}
+        {can('projects', 'view') && (
+          <MenuRow
+            glyph="💵"
+            label="Petty cash"
+            sub="Site top-ups, expenses & categories"
+            onPress={() => Linking.openURL(`${WEB_URL}/petty-cash`).catch(() => Alert.alert('Open web app', 'Sign in to the web app to manage petty cash.'))}
+          />
+        )}
         <MenuRow
           glyph="📡"
           label="Offline sync queue"
