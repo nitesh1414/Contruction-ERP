@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { subscribeQueue } from '../offline/queue';
-import { API_URL } from '../config';
+import { WEB_URL } from '../config';
 import { colors } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -92,7 +92,7 @@ export default function MoreScreen() {
             glyph="🧑‍💼"
             label="HR & Payroll"
             sub="Employee records, leave, salary & payroll"
-            onPress={() => Linking.openURL(`${API_URL.replace(/\/api\/?$/, '')}/hrms`).catch(() => Alert.alert('Open web app', 'Sign in to the web app to manage HR & payroll.'))}
+            onPress={() => Linking.openURL(`${WEB_URL}/hrms`).catch(() => Alert.alert('Open web app', 'Sign in to the web app to manage HR & payroll.'))}
           />
         )}
         {can('projects', 'view') && (
@@ -100,7 +100,7 @@ export default function MoreScreen() {
             glyph="💵"
             label="Petty cash"
             sub="Site top-ups, expenses & categories"
-            onPress={() => Linking.openURL(`${API_URL.replace(/\/api\/?$/, '')}/petty-cash`).catch(() => Alert.alert('Open web app', 'Sign in to the web app to manage petty cash.'))}
+            onPress={() => Linking.openURL(`${WEB_URL}/petty-cash`).catch(() => Alert.alert('Open web app', 'Sign in to the web app to manage petty cash.'))}
           />
         )}
         <MenuRow
