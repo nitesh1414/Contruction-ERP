@@ -1007,6 +1007,112 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 -- 15. Convenience views
 -- ---------------------------------------------------------------------------
 
+-- ---------------------------------------------------------------------------
+-- 16. Equipment Management module
+-- ---------------------------------------------------------------------------
+-- Track machinery on projects (rented + owned). Captures running
+-- hours, deployment hours, breakdown / idle time, hire billing rates.
+CREATE TABLE IF NOT EXISTS equipment (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  equipment_code  VARCHAR(40) NOT NULL UNIQUE,
+  name            VARCHAR(150) NOT NULL,
+  equipment_type  ENUM('excavator','crane','concrete_mixer','tower_crane','bulldozer','loader','generator','compactor','dumper','scaffolding','pump','other') NOT NULL DEFAULT 'other',
+  ownership       ENUM('owned','rented','contractor_supplied') NOT NULL DEFAULT 'rented',
+  vendor_id       BIGINT UNSIGNED NULL,
+  project_id      BIGINT UNSIGNED NULL,
+  wing_id         BIGINT UNSIGNED NULL,
+  hourly_rate     DECIMAL(10,2) NOT NULL DEFAULT 0,
+  daily_rate      DECIMAL(10,2) NOT NULL DEFAULT 0,
+  monthly_rate    DECIMAL(12,2) NOT NULL DEFAULT 0,
+  capacity        VARCHAR(80) NULL,
+  registration_no VARCHAR(60) NULL,
+  operator_name   VARCHAR(120) NULL,
+  status          ENUM('available','deployed','maintenance','breakdown','idle') NOT NULL DEFAULT 'available',
+  deployed_on     DATE NULL,
+  remarks         TEXT NULL,
+  is_active       TINYINT(1) NOT NULL DEFAULT 1,
+  created_by      BIGINT UNSIGNED NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_eq_project (project_id),
+  INDEX idx_eq_status  (status),
+  INDEX idx_eq_type    (equipment_type),
+  CONSTRAINT fk_eq_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL,
+  CONSTRAINT fk_eq_wing    FOREIGN KEY (wing_id)    REFERENCES wings(id)    ON DELETE SET NULL,
+  CONSTRAINT fk_eq_user    FOREIGN KEY (created_by) REFERENCES users(id)   ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS equipment_logs (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  equipment_id    BIGINT UNSIGNED NOT NULL,
+  project_id      BIGINT UNSIGNED NOT NULL,
+  wing_id         BIGINT UNSIGNED NULL,
+  log_date        DATE NOT NULL,
+  deployed_hours  DECIMAL(6,2) NOT NULL DEFAULT 0,
+  running_hours   DECIMAL(6,2) NOT NULL DEFAULT 0,
+  idle_hours      DECIMAL(6,2) NOT NULL DEFAULT 0,
+  breakdown_hours DECIMAL(6,2) NOT NULL DEFAULT 0,
+  fuel_quantity   DECIMAL(10,2) NOT NULL DEFAULT 0,  -- litres
+  operator_name   VARCHAR(120) NULL,
+  work_done       VARCHAR(255) NULL,
+  status_after    ENUM('available','deployed','maintenance','breakdown','idle') NOT NULL DEFAULT 'deployed',
+  remarks         TEXT NULL,
+  marked_by       BIGINT UNSIGNED NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_erl_eq   (equipment_id, log_date),
+  INDEX idx_erl_proj (project_id, log_date),
+  CONSTRAINT fk_erl_eq   FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE,
+  CONSTRAINT fk_erl_proj FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_erl_wing FOREIGN KEY (wing_id)    REFERENCES wings(id)    ON DELETE SET NULL,
+  CONSTRAINT fk_erl_user FOREIGN KEY (marked_by)  REFERENCES users(id)    ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS equipment_billing (
+  id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  equipment_id    BIGINT UNSIGNED NOT NULL,
+  project_id      BIGINT UNSIGNED NOT NULL,
+  billing_month   CHAR(7) NOT NULL,  -- YYYY-MM
+  total_hours     DECIMAL(10,2) NOT NULL DEFAULT 0,
+  hourly_rate     DECIMAL(10,2) NOT NULL DEFAULT 0,
+  total_amount    DECIMAL(12,2) NOT NULL DEFAULT 0,
+  payment_status  ENUM('pending','partial','paid') NOT NULL DEFAULT 'pending',
+  paid_amount     DECIMAL(12,2) NOT NULL DEFAULT 0,
+  invoice_number  VARCHAR(60) NULL,
+  invoice_date    DATE NULL,
+  remarks         TEXT NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_eq_bill (equipment_id, billing_month),
+  CONSTRAINT fk_erb_eq   FOREIGN KEY (equipment_id) REFERENCES equipment(id) ON DELETE CASCADE,
+  CONSTRAINT fk_erb_proj FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE OR REPLACE VIEW v_equipment_status AS
+SELECT
+  e.id              AS equipment_id,
+  e.equipment_code,
+  e.name,
+  e.equipment_type,
+  e.ownership,
+  e.status,
+  e.project_id,
+  p.name            AS project_name,
+  w.name            AS wing_name,
+  COALESCE(SUM(erl.deployed_hours), 0)  AS total_deployed_hours,
+  COALESCE(SUM(erl.running_hours), 0)   AS total_running_hours,
+  COALESCE(SUM(erl.idle_hours), 0)      AS total_idle_hours,
+  COALESCE(SUM(erl.breakdown_hours), 0) AS total_breakdown_hours,
+  COALESCE(SUM(erl.fuel_quantity), 0)   AS total_fuel,
+  MAX(erl.log_date)                    AS last_log_date
+FROM equipment e
+LEFT JOIN projects p   ON p.id = e.project_id
+LEFT JOIN wings w      ON w.id = e.wing_id
+LEFT JOIN equipment_logs erl ON erl.equipment_id = e.id
+GROUP BY e.id, e.equipment_code, e.name, e.equipment_type, e.ownership,
+         e.status, e.project_id, p.name, w.name;
+
+
 CREATE OR REPLACE VIEW v_stock_summary AS
 SELECT
   p.id   AS project_id,

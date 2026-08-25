@@ -22,6 +22,7 @@ import Workforce from './pages/Workforce';
 import SalesPage from './pages/SalesPage';
 import Documents from './pages/Documents';
 import Reports from './pages/Reports';
+import Equipment from './pages/Equipment';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { user, loading } = useAuth();
@@ -75,6 +76,7 @@ export default function App() {
       <Route path="/sales" element={<RequireAuth><Layout><RequirePermission perm="sales.view"><SalesPage /></RequirePermission></Layout></RequireAuth>} />
       <Route path="/documents" element={<RequireAuth><Layout><RequirePermission perm="documents.view"><Documents /></RequirePermission></Layout></RequireAuth>} />
       <Route path="/reports" element={<RequireAuth><Layout><RequirePermission perm="reports.view"><Reports /></RequirePermission></Layout></RequireAuth>} />
+      <Route path="/equipment" element={<RequireAuth><Layout><RequirePermission perm="projects.view"><Equipment /></RequirePermission></Layout></RequireAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

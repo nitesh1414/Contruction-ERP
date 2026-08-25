@@ -4,20 +4,21 @@ import { useAuth } from '../auth/AuthContext';
 
 const NAV = [
   { to: '/', label: 'Admin Dashboard', icon: '📊', perm: null },
-  { section: 'Access Control' },
+  { section: 'Access Control', tagline: 'Who uses the platform' },
   { to: '/users', label: 'Users', icon: '👤', perm: 'users.view' },
   { to: '/roles', label: 'Roles & Permissions', icon: '🛡️', perm: 'roles.view' },
-  { section: 'Master Data' },
+  { section: 'Master Data', tagline: 'Configure the operating model' },
   { to: '/projects', label: 'Projects & Wings', icon: '🏗️', perm: 'projects.view' },
   { to: '/masters', label: 'Masters', icon: '🗂️', perm: null },
-  { section: 'System' },
+  { section: 'System', tagline: 'Watch it all run' },
   { to: '/audit-logs', label: 'Audit Logs', icon: '📜', perm: 'admin.view' },
   { to: '/notifications', label: 'Broadcast', icon: '📣', perm: 'notifications.create' },
 ];
 
 const TITLES: Record<string, string> = {
   '/': 'Admin Dashboard', '/users': 'User Management', '/roles': 'Roles & Permissions',
-  '/projects': 'Projects & Wings', '/masters': 'Master Data', '/audit-logs': 'Audit Logs', '/notifications': 'Broadcast Notification',
+  '/projects': 'Projects & Wings', '/masters': 'Master Data',
+  '/audit-logs': 'Audit Logs', '/notifications': 'Broadcast Center',
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -40,8 +41,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-hidden="true" />
       <aside className="sidebar">
         <div className="brand">
-          <img src="/logo.svg" alt="logo" />
-          <span>ERP Admin<small>System Administration</small></span>
+          <div className="logo-mark" aria-label="ERP logo">B</div>
+          <span>BuildTrack<small>Admin Console</small></span>
         </div>
         <nav>
           {NAV.map((item, i) => {
@@ -55,12 +56,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="sidebar-footer">Construction ERP Admin v1.0</div>
+        <div className="sidebar-footer">System Administration v1.0<br/>Web · Mobile · Tablet</div>
       </aside>
       <div className="main">
         <header className="topbar">
           <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>☰</button>
           <div className="page-title">{TITLES[location.pathname] || 'Admin Panel'}</div>
+          <div className="badge-stack">
+            <span className="chip blue">Admin Console</span>
+            <span className="chip">v1.0</span>
+          </div>
           <div className="spacer" />
           <div style={{ position: 'relative' }} ref={menuRef}>
             <div className="user-chip" onClick={() => setMenu(!menu)}>
