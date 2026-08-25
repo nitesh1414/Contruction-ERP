@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+build/
+web-build/
+
+# Env
+.env
+.env.local
+*.env
+!**/.env.example
+
+# Uploads (runtime storage — keep folders via .gitkeep)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Expo
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Android / iOS native builds
+mobile/android/
+mobile/ios/
+
+# Misc
+coverage/
+/tmp/
+database/*.local.sql

@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "Construction ERP",
+    "slug": "construction-erp-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#0f1b2d",
+    "splash": {
+      "backgroundColor": "#0f1b2d",
+      "image": "./assets/splash.png",
+      "resizeMode": "contain"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.constructionerp.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera is used to capture site progress, issue and inspection photos.",
+        "NSLocationWhenInUseUsageDescription": "Location is used to geo-tag site photos and attendance.",
+        "NSPhotoLibraryUsageDescription": "Photo library access is used to attach existing site photos."
+      }
+    },
+    "android": {
+      "package": "com.constructionerp.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f1b2d",
+        "foregroundImage": "./assets/adaptive-icon.png"
+      },
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "POST_NOTIFICATIONS"]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Construction ERP to capture site photos.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Construction ERP to geo-tag site photos and attendance."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:4000",
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  }
+}

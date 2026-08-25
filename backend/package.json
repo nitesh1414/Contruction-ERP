@@ -1,0 +1,40 @@
+{
+  "name": "construction-erp-backend",
+  "version": "1.0.0",
+  "description": "Construction Project Tracking System - REST API (Node.js + Express + MySQL)",
+  "type": "module",
+  "main": "src/index.js",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js",
+    "db:setup": "node scripts/migrate.js && node scripts/seed.js",
+    "db:reset": "node scripts/migrate.js --drop && node scripts/seed.js",
+    "smoke": "node scripts/smoke.js",
+    "check": "node scripts/check-syntax.js",
+    "check:sql": "node scripts/sql-lint/seed-dry-run.mjs && node scripts/sql-lint/app-queries.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.11",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "express-validator": "^7.1.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.1",
+    "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "node-sql-parser": "^5.4.0"
+  }
+}
