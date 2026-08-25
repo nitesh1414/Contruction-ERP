@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useFetch } from '../hooks/useFetch';
-import { StatCard, DataTable, Badge, fmtMoney } from '../components/ui';
+import { StatCard, DataTable, Badge, fmtMoney, fmtMoneyCompact } from '../components/ui';
 
 const COLORS = ['#7c3aed', '#06b6d4', '#0ea878', '#e79a09', '#e24545', '#2563eb'];
 
@@ -22,7 +22,7 @@ export default function Dashboard() {
         <StatCard icon="🛡️" label="Roles" value={roles?.length ?? 0} color="#e0f2fe" />
         <StatCard icon="🏗️" label="Projects" value={overview?.projects?.total ?? projects?.pagination?.total ?? 0} color="#e8f0fe" />
         <StatCard icon="🏢" label="Wings" value={overview?.wings?.total ?? 0} color="#dcfcee" />
-        <StatCard icon="💰" label="Total Budget" value={fmtMoney(overview?.projects?.totalBudget)} color="#fef3d8" />
+        <StatCard icon="💰" label="Total Budget" value={fmtMoneyCompact(overview?.projects?.totalBudget)} color="#fef3d8" />
         <StatCard icon="⚠️" label="Open Issues" value={overview?.issues?.open ?? 0} color="#fee8e8" />
       </div>
 

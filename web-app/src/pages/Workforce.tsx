@@ -230,7 +230,7 @@ function PaymentsTab() {
         <h3>Labour Payments</h3>
         <div className="actions">
           <StatCard icon="⏳" label="Pending" value={fmtMoney(pendingTotal)} color="#fee8e8" />
-          {can('attendance.create') && <button className="btn primary sm" onClick={() => setOpen(true)}>＋ Generate Payment</button>}
+          {can('attendance.create') && <button className="btn primary sm" onClick={() => setOpen(true)}>+ Generate Payment</button>}
         </div>
       </div>
       <div className="filter-bar">

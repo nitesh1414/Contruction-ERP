@@ -34,7 +34,7 @@ export default function ProgressPage() {
           <h3>Daily Progress Reports</h3>
           <div className="actions">
             {can('progress.export') && <ExportButton />}
-            {can('progress.create') && <button className="btn primary sm" onClick={() => setOpen(true)}>＋ New Report</button>}
+            {can('progress.create') && <button className="btn primary sm" onClick={() => setOpen(true)}>+ New Report</button>}
           </div>
         </div>
         <div className="filter-bar">

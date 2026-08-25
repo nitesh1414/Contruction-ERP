@@ -149,7 +149,7 @@ export default function CrudPage<T extends Record<string, any>>({ config }: { co
             <button className="btn outline sm" onClick={() => downloadExport(config.exportPath!, `${config.module}-export.csv`).catch((e) => toast.push(errMsg(e), 'error'))}>⬇ Export CSV</button>
           )}
           {can(`${config.module}.create`) && !config.createDisabled && (
-            <button className="btn primary sm" onClick={openNew}>＋ {config.createLabel || 'New'}</button>
+            <button className="btn primary sm" onClick={openNew}>+ {config.createLabel || 'New'}</button>
           )}
         </div>
       </div>

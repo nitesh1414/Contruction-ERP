@@ -190,7 +190,7 @@ function PurchaseOrdersTab() {
       <div className="card-header">
         <h3>Purchase Orders</h3>
         <div className="actions">
-          {can('materials.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)}>＋ New PO</button>}
+          {can('materials.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)}>+ New PO</button>}
         </div>
       </div>
       <div className="filter-bar">
@@ -302,7 +302,7 @@ function PoCreateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           </tbody>
         </table>
       </div>
-      <button className="btn outline sm" onClick={() => setItems((s) => [...s, { material_id: null, quantity: 1, unit: 'kg', rate: 0, tax_percent: 18 }])}>＋ Add item</button>
+      <button className="btn outline sm" onClick={() => setItems((s) => [...s, { material_id: null, quantity: 1, unit: 'kg', rate: 0, tax_percent: 18 }])}>+ Add item</button>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 26, marginTop: 14, fontSize: 14 }}>
         <span>Subtotal: <strong>₹{subtotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</strong></span>

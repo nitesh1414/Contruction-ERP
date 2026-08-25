@@ -82,7 +82,7 @@ function Inspections() {
       <div className="card-header">
         <h3>Inspection Reports</h3>
         <div className="actions">
-          {can('inspections.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)}>＋ New Inspection</button>}
+          {can('inspections.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)}>+ New Inspection</button>}
         </div>
       </div>
       <div className="filter-bar">
@@ -186,7 +186,7 @@ function InspectionCreateModal({ onClose, onSaved }: { onClose: () => void; onSa
               <button className="btn outline sm" onClick={() => setChecklist((s) => s.length > 1 ? s.filter((_, j) => j !== i) : [{ label: '', result: 'pass' }])}>✕</button>
             </div>
           ))}
-          <button className="btn outline sm" onClick={() => setChecklist((s) => [...s, { label: '', result: 'pass' }])}>＋ Add checklist item</button>
+          <button className="btn outline sm" onClick={() => setChecklist((s) => [...s, { label: '', result: 'pass' }])}>+ Add checklist item</button>
         </div>
       </div>
     </Modal>

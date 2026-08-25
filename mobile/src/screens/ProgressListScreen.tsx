@@ -122,7 +122,7 @@ export default function ProgressListScreen() {
 
       {can('progress', 'create') ? (
         <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('ProgressCapture')} activeOpacity={0.9}>
-          <Text style={styles.fabText}>＋</Text>
+          <Text style={styles.fabText}>+</Text>
         </TouchableOpacity>
       ) : null}
     </View>

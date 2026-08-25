@@ -35,7 +35,7 @@ export default function Issues() {
       <div className="card-header">
         <h3>Site Issues</h3>
         <div className="actions">
-          {can('issues.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)}>＋ Raise Issue</button>}
+          {can('issues.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)}>+ Raise Issue</button>}
         </div>
       </div>
       <div className="filter-bar">

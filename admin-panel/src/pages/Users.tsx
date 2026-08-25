@@ -58,7 +58,7 @@ export default function Users() {
         <h3>Users</h3>
         <div className="actions">
           {can('users.export') && <button className="btn outline sm" onClick={async () => { try { await downloadExport('/users/export', 'users.csv'); } catch (e) { toast.push(errMsg(e), 'error'); } }}>⬇ Export</button>}
-          {can('users.create') && <button className="btn primary sm" onClick={() => { setDetail(null); setEditUser({}); }}>＋ New User</button>}
+          {can('users.create') && <button className="btn primary sm" onClick={() => { setDetail(null); setEditUser({}); }}>+ New User</button>}
         </div>
       </div>
       <div className="filter-bar">
@@ -191,7 +191,7 @@ function UserFormModal({ user, onClose, onSave, busy, roles, projects }: {
           <button className="btn outline sm" onClick={() => setAccess((s) => s.filter((_, j) => j !== idx))}>✕</button>
         </div>
       ))}
-      <button className="btn outline sm" onClick={() => setAccess((s) => [...s, { project_id: '', wing_id: 0 }])}>＋ Add project access</button>
+      <button className="btn outline sm" onClick={() => setAccess((s) => [...s, { project_id: '', wing_id: 0 }])}>+ Add project access</button>
     </Modal>
   );
 }

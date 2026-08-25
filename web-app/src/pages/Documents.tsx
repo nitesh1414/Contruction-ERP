@@ -29,7 +29,7 @@ export default function Documents() {
       <div className="card-header">
         <h3>Project Documents</h3>
         <div className="actions">
-          {can('documents.upload') && <button className="btn primary sm" onClick={() => setOpen(true)}>＋ Upload Document</button>}
+          {can('documents.upload') && <button className="btn primary sm" onClick={() => setOpen(true)}>+ Upload Document</button>}
         </div>
       </div>
       <div className="filter-bar">

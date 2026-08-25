@@ -20,7 +20,7 @@ export default function Roles() {
       <div className="card-header">
         <h3>Roles & Permissions</h3>
         <div className="actions">
-          {can('roles.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)}>＋ New Role</button>}
+          {can('roles.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)}>+ New Role</button>}
         </div>
       </div>
       <DataTable

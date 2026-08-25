@@ -8,6 +8,25 @@ interface FetchState<T> {
   reload: () => void;
 }
 
+/**
+ * Unwraps the API envelope `{ success, data, pagination }` to its payload.
+ * For list endpoints the payload is an array; keep body-style access working
+ * (`data?.data`, `data?.pagination`) via non-enumerable shim properties so
+ * pages written against either shape render rows and pagination correctly.
+ */
+function unwrapPayload(body: any) {
+  const payload = body?.data ?? body;
+  if (Array.isArray(payload) && body && typeof body === 'object') {
+    if (!Object.prototype.hasOwnProperty.call(payload, 'data')) {
+      Object.defineProperty(payload, 'data', { value: payload, enumerable: false, configurable: true });
+    }
+    if (body.pagination) {
+      Object.defineProperty(payload, 'pagination', { value: body.pagination, enumerable: false, configurable: true });
+    }
+  }
+  return payload;
+}
+
 /** Simple GET hook with automatic refetch when params change. */
 export function useFetch<T = any>(url: string | null, params?: Record<string, any>): FetchState<T> {
   const [data, setData] = useState<T | null>(null);
@@ -26,7 +45,7 @@ export function useFetch<T = any>(url: string | null, params?: Record<string, an
     setError(null);
     api
       .get(url, { params: params ? JSON.parse(paramsKey) : undefined, signal: controller.signal })
-      .then((res) => setData(res.data.data ?? res.data))
+      .then((res) => setData(unwrapPayload(res.data)))
       .catch((err) => {
         if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') return;
         setError(err?.response?.data?.message || err.message || 'Request failed');

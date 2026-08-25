@@ -123,7 +123,7 @@ export default function IssuesScreen() {
 
       {can('issues', 'create') ? (
         <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('IssueCreate')} activeOpacity={0.9}>
-          <Text style={styles.fabText}>＋</Text>
+          <Text style={styles.fabText}>+</Text>
         </TouchableOpacity>
       ) : null}
     </View>

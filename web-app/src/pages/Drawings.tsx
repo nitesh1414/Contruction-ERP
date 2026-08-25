@@ -35,7 +35,7 @@ export default function Drawings() {
       <div className="card-header">
         <h3>Drawings & Document Control</h3>
         <div className="actions">
-          {can('drawings.upload') && <button className="btn primary sm" onClick={() => setCreateOpen(true)}>＋ Upload Drawing</button>}
+          {can('drawings.upload') && <button className="btn primary sm" onClick={() => setCreateOpen(true)}>+ Upload Drawing</button>}
         </div>
       </div>
       <div className="filter-bar">

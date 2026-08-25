@@ -64,6 +64,8 @@ The system ships with 12 ready-made roles. Admins can also create **custom roles
 
 ### 3.1 Log in
 
+![Admin panel sign-in](assets/screenshots/admin-00-login.png)
+
 1. Open the **Web Portal** URL (e.g. `http://your-server:5173`) — mobile app: open the app.
 2. Enter your **email** and **password**, press **Sign in**.
 3. First time? Your admin will share your credentials. The seeded super admin is `admin@constructionerp.com` / `Admin@123` (change it immediately in production).
@@ -78,6 +80,9 @@ Top-right user chip → **My Profile**:
 - **Change password** — enter current password, then the new one. Active sessions are revoked on password change.
 
 ### 3.3 The shell (web)
+
+![Responsive shell — navigation drawer on phone widths](assets/screenshots/web-25-mobile-sidebar.png)
+
 
 | Area | Purpose |
 |---|---|
@@ -165,12 +170,25 @@ Every day on site:
 ## 5. Web Portal — screen guide
 
 ### 5.1 Login / Forgot / Reset Password
+
+![Sign in to the web portal](assets/screenshots/web-00-login.png)
+
 Split-screen blue gradient login. Enter email + password → Sign in. **Forgot password** sends a reset link; **Reset Password** sets a new password from that link.
 
 ### 5.2 Dashboard
+
+![Executive dashboard — KPIs, charts and alerts](assets/screenshots/web-01-dashboard.png)
+
+![Dashboard on a phone (390 px) — fully responsive](assets/screenshots/web-24-mobile-dashboard.png)
+
 Your home: KPI cards (Projects with avg progress, Wings, Open Issues with high/critical count, Pending Inspections, Low-Stock Materials, Units Sold + collections, Pending Labour Payments, Vendor Dues), a **30-day progress trend** area chart, **Budget vs Actual** per project bars, project status donut, milestone status strip, plus lists: recent progress reports, open issues by priority, documents expiring in 30 days.
 
 ### 5.3 Projects
+
+![Projects list with progress bars and budgets](assets/screenshots/web-02-projects.png)
+
+![Project details — overview, wings, timeline, floors & units](assets/screenshots/web-03-project-detail.png)
+
 Filter by status/type, search. **+ New Project** (name, code, client, city, address, type, budget, dates, manager). Click a row → Project Detail:
 
 - **Overview** — KPIs, progress bar, key facts, budget vs cost.
@@ -179,15 +197,33 @@ Filter by status/type, search. **+ New Project** (name, code, client, city, addr
 - **Progress** — timeline of that project's daily reports with photos.
 
 ### 5.4 Daily Progress
+
+![Daily progress reports with photos and GPS](assets/screenshots/web-04-progress.png)
+
 All reports, newest first: date, project/wing/floor, description, %, labour, weather, GPS **map links**, photo thumbnails (authenticated image viewer). **+ New Report**: pick project (wing/floor cascade), date/time, work description, % completed, labour count, materials used, weather, remarks, attach photos — each photo keeps latitude/longitude/timestamp/uploader. Web page also keeps an **offline queue** (saved in the browser) if the network drops. Export CSV available.
 
 ### 5.5 Milestones
+
+![Milestones with progress and ownership](assets/screenshots/web-05-milestones.png)
+
 Table by project with target dates, % complete, status (pending/in_progress/completed/delayed — auto-flips to delayed past target date). **+ New Milestone**: project, optional wing, name, dates, responsible user, %.
 
 ### 5.6 Drawings
+
+![Drawing register with revisions and approval status](assets/screenshots/web-06-drawings.png)
+
 Drawing register: number, title, discipline, project/wing, current revision, status. Upload new drawings (PDF/JPG/PNG). Open a drawing → **revision history** — add a revision, **Approve / Reject** revisions, preview the file in-browser.
 
 ### 5.7 Materials (7 tabs)
+
+![Materials master](assets/screenshots/web-07-materials.png)
+
+![Stock position with low-stock alerts](assets/screenshots/web-08-materials-stock.png)
+
+![Material requirements with approve / reject](assets/screenshots/web-09-materials-requirements.png)
+
+![Purchase orders with receiving status](assets/screenshots/web-10-materials-purchase-orders.png)
+
 - **Materials** — master list (name, code, category, unit, min stock). CRUD + CSV export.
 - **Stock & Alerts** — live stock per project from the stock-transaction ledger; low-stock alerts; full transaction history (receipt/consumption/damage/return).
 - **Requirements** — requirement requests with PM **Approve/Reject** workflow (status: pending → approved → po_created / rejected).
@@ -197,33 +233,68 @@ Drawing register: number, title, discipline, project/wing, current revision, sta
 - **Suppliers** — supplier master with contact & GST details, CRUD + export.
 
 ### 5.8 BOQ
+
+![BOQ list](assets/screenshots/web-11-boq.png)
+
+![BOQ detail — estimated vs actual with variance](assets/screenshots/web-12-boq-detail.png)
+
 BOQ list per project (title, items count, estimated vs actual). **+ New BOQ**, or open one → detail: totals card (estimated total, actual total, cost variance %), items table with **qty × rate**, actual qty, **qty variance and cost variance** columns, add/edit items, **CSV template export + bulk import (paste CSV)**, export whole BOQ.
 
 ### 5.9 Billing & Cost
+
+![Billing & cost — totals, breakdown chart and entries](assets/screenshots/web-13-billing.png)
+
 Stat cards (Total cost / Paid / Pending), stacked monthly cost chart, cost entries table (date, category, vendor, invoice, amount, tax, paid, status). **+ New Cost Entry** — 20 fields incl. project/wing, category, vendor/supplier, amounts; payment status computes automatically from paid vs total.
 
 ### 5.10 Quality
+
+![Material test reports with pass/fail results](assets/screenshots/web-14-test-reports.png)
+
+![Site inspections with checklists](assets/screenshots/web-15-inspections.png)
+
 - **Test Reports** — table (test no., type, project, material, dates, lab, result **pending/pass/fail**, report file view). Filters by type/result; approve/reject actions for authorized users.
 - **Inspections** — list + create: type, project/wing/floor/location, date, observation, **checklist builder** (add items inline, each pass/fail/N/A + remarks), photos + GPS, status workflow pending → passed/failed/reinspection_required → closed.
 
 ### 5.11 Issues
+
+![Site issues with priority, status and age](assets/screenshots/web-16-issues.png)
+
 Filters (status, priority, category, project). **+ New Issue** — title, category, priority, project/wing/floor, description, photos + GPS, assignee, due date. Open an issue → **status actions** (assign, start work, resolve, close, reopen) and the **comment thread**.
 
 ### 5.12 Workforce
+
+![Daily attendance register](assets/screenshots/web-17-workforce-attendance.png)
+
+![Labour payments with wages, advances and net payable](assets/screenshots/web-22-workforce-payments.png)
+
 - **Attendance** — date + project grid of all workers; quick-mark **All Present**, per-worker P/A/L/H/OT buttons with OT hours; live day total (Σ wages + OT); **Save** writes the whole day at once.
 - **Workers** — worker master (code, name, category, contractor, daily wage, OT rate, phone).
 - **Payments** — labour payment records; **Generate from Attendance** (worker + period → auto-computed payable), adjust deductions, record paid amounts/mode/reference; statuses pending → partial → paid; monthly register view.
 
 ### 5.13 Sales
+
+![Unit sales with collections and pending balances](assets/screenshots/web-18-sales.png)
+
 Stat cards (units sold, sale value, received, pending). Sales table with status. **+ New Sale** — cascading **Project→Wing→Floor→Unit (only available units)**, customer details, dates, amount, GST. Row → **payments**: full payment history + **Add Payment**.
 
 ### 5.14 Documents
+
+![Project documents with expiry alerts](assets/screenshots/web-19-documents.png)
+
 Document register: title, category (contract, insurance, license…), project, **expiry date** (expiring-soon highlighted and shown on the dashboard). Upload (PDF/JPG/PNG/DOC/XLS), download, delete, filter by category/project.
 
 ### 5.15 Reports
+
+![Reports centre — 17 one-click reports](assets/screenshots/web-20-reports.png)
+
+![Report viewer with date filter, CSV export and print/PDF](assets/screenshots/web-23-report-viewer.png)
+
 16 report cards: pick one → viewer with date/project filters, on-screen table, **Download CSV**, print. Reports: Project Progress, Daily Progress, Milestones, Material Stock, Material Consumption, Purchase Orders, Billing & Cost, BOQ Summary, Test Reports, Inspection Reports, Issues, Worker Attendance, Sales, Budget vs Actual, Pending Collections, Labour Payments.
 
 ### 5.16 My Profile
+
+![My profile and change password](assets/screenshots/web-21-profile.png)
+
 Edit name/phone, change password; see your roles and project access.
 
 ---
@@ -231,29 +302,56 @@ Edit name/phone, change password; see your roles and project access.
 ## 6. Admin Panel — screen guide
 
 ### 6.1 Admin Dashboard
+
+![Admin dashboard — system KPIs, usage and audit pulse](assets/screenshots/admin-01-dashboard.png)
+
+![Admin dashboard on a phone](assets/screenshots/admin-09-mobile.png)
+
 Users by role donut, activity trend, total users/projects/roles/audit count cards, recent audit log table, role list with user counts.
 
 ### 6.2 Users
+
+![User management with roles and project access](assets/screenshots/admin-02-users.png)
+
 All users (search, filter by status/role). **+ New User** (account details). Row actions: **Edit**, **Roles** (toggle role chips), **Project Access** (rows of project + optional wing restriction — this is how wing-scoped engineers are configured), **Reset Password** (set a new password directly), **Enable/Disable**, **Delete**. Export users to CSV.
 
 ### 6.3 Roles & Permission Matrix
+
+![Roles with user and permission counts](assets/screenshots/admin-03-roles.png)
+
+![Permission matrix — module × action checkboxes](assets/screenshots/admin-08-permission-matrix.png)
+
 Role list with user & permission counts. **+ New Role** for custom roles. Click **Permissions** on a role → the **matrix editor**: every module (projects, progress, materials, …) × 8 actions (view/create/edit/delete/approve/export/upload/download) with checkboxes, module-level toggle, live selected count → **Save**.
 
 ### 6.4 Masters
+
+![Master data — materials, categories, labour rates and more](assets/screenshots/admin-04-masters.png)
+
 Nine master-data tabs feeding all dropdowns: **Material Categories, Worker Categories, Labour Rates, Contractors, BOQ Categories, Test Types, Inspection Types, Issue Categories, Notification Settings** (enable/disable per event like `issue_assigned`, `low_stock`, `document_expiring`). Full CRUD with activate/deactivate.
 
 ### 6.5 Projects Overview
+
+![All projects with budgets and status](assets/screenshots/admin-05-projects.png)
+
 Read-only bird's-eye: all projects, expand a row → its wings → floors with progress — a quick audit of structures without edit rights.
 
 ### 6.6 Audit Logs
+
+![Audit logs — every create/edit/delete with user and time](assets/screenshots/admin-06-audit-logs.png)
+
 Complete trail: user, action (create/edit/delete/login…), module, record, **old vs new values (JSON diff view)**, IP, timestamp. Filter by user/module/action/date; export CSV.
 
 ### 6.7 Broadcast
+
+![Broadcast a notification to all or filtered users](assets/screenshots/admin-07-broadcast.png)
+
 Compose an in-app + push message: title, body, type. Target **all users**, a role, or hand-picked users (multi-select). Preview before sending.
 
 ---
 
 ## 7. Mobile App — screen guide
+
+> Screenshots: run the app through Expo Go on your phone (see §3.1 of the README) and take captures on-device — the web portal captures in §5 also show how every screen adapts to phone widths.
 
 The mobile app mirrors the essentials for site work. Bottom tabs: **Home · Progress · Attendance · Issues · More** (More shows an orange badge when offline items are queued).
 

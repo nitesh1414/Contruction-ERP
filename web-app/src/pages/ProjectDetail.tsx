@@ -143,7 +143,7 @@ function WingsTab({ project, reload }: { project: any; reload: () => void }) {
   return (
     <div>
       <div className="filter-bar" style={{ justifyContent: 'flex-end' }}>
-        {can('wings.create') && <button className="btn primary sm" onClick={() => setEdit({ status: 'planning' })}>＋ Add Wing</button>}
+        {can('wings.create') && <button className="btn primary sm" onClick={() => setEdit({ status: 'planning' })}>+ Add Wing</button>}
       </div>
       <DataTable<Wing>
         columns={[

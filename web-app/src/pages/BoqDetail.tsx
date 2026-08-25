@@ -42,7 +42,7 @@ export default function BoqDetail() {
           </div>
           <div className="flex gap-sm">
             {can('boq.export') && <button className="btn outline sm" onClick={async () => { try { await downloadExport(`/boq/${id}/export`, `${data.boq_number}.csv`); } catch (e) { toast.push(errMsg(e), 'error'); } }}>⬇ Export CSV</button>}
-            {can('boq.edit') && <button className="btn primary sm" onClick={() => setNewItem({ unit: 'nos', estimated_qty: 0, rate: 0, actual_qty: 0 })}>＋ Add item</button>}
+            {can('boq.edit') && <button className="btn primary sm" onClick={() => setNewItem({ unit: 'nos', estimated_qty: 0, rate: 0, actual_qty: 0 })}>+ Add item</button>}
           </div>
         </div>
         <div className="stat-grid" style={{ marginTop: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
