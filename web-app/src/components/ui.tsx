@@ -118,7 +118,7 @@ export function DataTable<T extends Record<string, any>>({
     <div className="table-wrap">
       <table className="data">
         <thead>
-          <tr>{columns.map((c) => <th key={c.key} className={c.align === 'right' ? 'right' : ''}>{c.label}</th>)}</tr>
+          <tr>{columns.map((c) => <th key={c.key} className={c.align === 'right' ? 'right' : ''} style={c.width != null ? { width: c.width } : undefined}>{c.label}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((row, i) => (
@@ -197,7 +197,7 @@ export function Field({
       control = <input {...common} type="number" step="any" value={value ?? ''} onChange={(e) => onChange(e.target.value === '' ? null : Number(e.target.value))} placeholder={config.placeholder} />;
       break;
     default:
-      control = <input {...common} type={config.type} value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={config.placeholder} />;
+      control = <input {...common} type={config.type || 'text'} value={value ?? ''} onChange={(e) => onChange(e.target.value)} placeholder={config.placeholder} />;
   }
   return (
     <div className="field">

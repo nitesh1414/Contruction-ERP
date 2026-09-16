@@ -186,7 +186,7 @@ function SalaryTab() {
   const { can } = useAuth();
   const { data, loading, reload } = useFetch<any>('/hrms/salary-structures');
   const [edit, setEdit] = useState<any>(null);
-  const [form, setForm] = useState<any>({});
+  const [form, setForm] = useState<Record<string, any>>({});
   const rows = data?.data || [];
   const FIELDS: FieldConfig[] = [
     { key: 'employee_id', label: 'Employee ID', type: 'number', required: true },

@@ -136,7 +136,7 @@ function LogForm({ equipmentId, projectId, onSaved }: { equipmentId: number; pro
 
 function EquipmentDetail({ id, onClose }: { id: number; onClose: () => void }) {
   const toast = useToast();
-  const { data, loading, refetch } = useFetch<any>(`/equipment/${id}`);
+  const { data, loading, reload } = useFetch<any>(`/equipment/${id}`);
   const [showLogForm, setShowLogForm] = useState(false);
   if (loading && !data) return <div className="spinner-wrap"><div className="spinner" /></div>;
   if (!data) return <div className="empty">Not found</div>;
@@ -148,7 +148,7 @@ function EquipmentDetail({ id, onClose }: { id: number; onClose: () => void }) {
     try {
       await api.post('/equipment/billing/generate', { equipment_id: id, billing_month: month });
       toast.push('Billing generated');
-      refetch();
+      reload();
     } catch (e) { toast.push(errMsg(e), 'error'); }
   };
   return (
@@ -183,11 +183,11 @@ function EquipmentDetail({ id, onClose }: { id: number; onClose: () => void }) {
             <h3>Daily logs</h3>
             <div className="actions">
               <button className="btn primary sm" onClick={() => setShowLogForm(!showLogForm)}>+ Daily log</button>
-              <button className="btn outline sm" onClick={refetch}>Refresh</button>
+              <button className="btn outline sm" onClick={reload}>Refresh</button>
             </div>
           </div>
           <div className="card-pad" style={{ paddingTop: 0 }}>
-            {showLogForm && <LogForm equipmentId={id} projectId={data.project_id} onSaved={() => { setShowLogForm(false); refetch(); }} />}
+            {showLogForm && <LogForm equipmentId={id} projectId={data.project_id} onSaved={() => { setShowLogForm(false); reload(); }} />}
           </div>
           {logs.length === 0 ? (
             <div className="empty">
