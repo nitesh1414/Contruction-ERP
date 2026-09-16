@@ -112,7 +112,8 @@ export interface NotificationItem {
 export interface FieldConfig {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'time' | 'select' | 'textarea' | 'checkbox' | 'email' | 'password' | 'datetime-local';
+  /** Optional — omitted means a plain text input. */
+  type?: 'text' | 'number' | 'date' | 'time' | 'select' | 'textarea' | 'checkbox' | 'email' | 'password' | 'datetime-local';
   options?: { value: string | number; label: string }[];
   required?: boolean;
   placeholder?: string;
@@ -126,4 +127,6 @@ export interface ColumnConfig<T = any> {
   render?: (row: T) => React.ReactNode;
   align?: 'left' | 'right';
   hideOnMobile?: boolean;
+  /** Preferred column width, e.g. 110 or '8rem'. Applied to the header cell. */
+  width?: number | string;
 }
