@@ -15,6 +15,8 @@ function EmployeesTab() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<Record<string, any>>({});
+  const { data: projects } = useFetch<any>('/projects', { limit: 200 });
+  const { data: loginRoles } = useFetch<any>('/hrms/login-roles');
   const debounced = useDebounce(search);
   const params = useMemo(() => ({ page, limit: 20, search: debounced, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')) }), [page, debounced, filters]);
   const { data, loading, reload } = useFetch<any>('/hrms/employees', params);
@@ -22,6 +24,7 @@ function EmployeesTab() {
   const total = data?.pagination?.total ?? 0;
   const [edit, setEdit] = useState<any>(null);
   const [form, setForm] = useState<Record<string, any>>({});
+  const [login, setLogin] = useState<{ enabled: boolean; password: string; roleIds: number[] }>({ enabled: false, password: '', roleIds: [] });
   const [saving, setSaving] = useState(false);
 
   const EMPLOYEE_FIELDS: FieldConfig[] = [
@@ -38,19 +41,49 @@ function EmployeesTab() {
       { value: 'permanent', label: 'Permanent' }, { value: 'contract', label: 'Contract' }, { value: 'probation', label: 'Probation' }, { value: 'intern', label: 'Intern' } ] },
     { key: 'status', label: 'Status', type: 'select', options: [
       { value: 'active', label: 'Active' }, { value: 'on_leave', label: 'On leave' }, { value: 'resigned', label: 'Resigned' }, { value: 'terminated', label: 'Terminated' } ] },
-    { key: 'project_id', label: 'Project ID', type: 'number', placeholder: 'Project id (optional)' },
+    { key: 'project_id', label: 'Project', type: 'select', options: (projects?.data || []).map((p: any) => ({ value: p.id, label: `${p.name} · ${p.code}` })) },
     { key: 'is_active', label: 'Active', type: 'checkbox' },
     { key: 'remarks', label: 'Remarks', type: 'textarea', width: 'full' },
   ];
 
-  const openNew = () => { setForm({ is_active: 1, status: 'active', employment_type: 'permanent' }); setEdit('new'); };
-  const openEdit = (row: any) => { setForm({ ...row }); setEdit(row); };
+  const openNew = () => {
+    setForm({ is_active: 1, status: 'active', employment_type: 'permanent' });
+    setLogin({ enabled: false, password: '', roleIds: [] });
+    setEdit('new');
+  };
+  const openEdit = (row: any) => {
+    setForm({ ...row });
+    setLogin({ enabled: false, password: '', roleIds: [] });
+    setEdit(row);
+  };
   const save = async () => {
+    if (login.enabled) {
+      if (!can('users.create')) { toast.push('You need Users → Create permission to provision a login', 'error'); return; }
+      if (!form.email) { toast.push('Add an email address for the login', 'error'); return; }
+      if (login.password.length < 8) { toast.push('Login password must be at least 8 characters', 'error'); return; }
+      if (!login.roleIds.length) { toast.push('Select at least one login role', 'error'); return; }
+      if (edit !== 'new' && edit.user_id) { toast.push('This employee already has a linked login', 'error'); return; }
+    }
     setSaving(true);
     try {
-      const payload = { ...form, is_active: form.is_active === 1 || form.is_active === true ? 1 : 0 };
-      if (edit === 'new') { await api.post('/hrms/employees', payload); toast.push('Employee added'); }
-      else { await api.put(`/hrms/employees/${edit.id}`, payload); toast.push('Updated'); }
+      const payload: Record<string, any> = { ...form, is_active: form.is_active === 1 || form.is_active === true ? 1 : 0 };
+      if (edit === 'new') {
+        if (login.enabled) {
+          payload.create_login = true;
+          payload.login_password = login.password;
+          payload.login_role_ids = login.roleIds;
+        }
+        await api.post('/hrms/employees', payload);
+        toast.push(login.enabled ? 'Employee and login created' : 'Employee added');
+      } else {
+        if (login.enabled) {
+          payload.create_login = true;
+          payload.login_password = login.password;
+          payload.login_role_ids = login.roleIds;
+        }
+        await api.put(`/hrms/employees/${edit.id}`, payload);
+        toast.push(login.enabled ? 'Employee updated and login linked' : 'Updated');
+      }
       setEdit(null); reload();
     } catch (e) { toast.push(errMsg(e), 'error'); }
     finally { setSaving(false); }
@@ -62,6 +95,9 @@ function EmployeesTab() {
     { key: 'designation', label: 'Designation' },
     { key: 'department', label: 'Dept' },
     { key: 'project_name', label: 'Project' },
+    { key: 'user_name', label: 'Login', render: (r) => r.user_id
+      ? <span className="badge green">Linked{r.user_name ? ` · ${r.user_name}` : ''}</span>
+      : <span className="badge gray">No login</span> },
     { key: 'status', label: 'Status', render: (r) => (
       <span className={`badge ${r.status === 'active' ? 'green' : r.status === 'on_leave' ? 'orange' : 'red'}`}>{r.status}</span>
     ) },
@@ -108,6 +144,41 @@ function EmployeesTab() {
           <div className="form-grid">
             {EMPLOYEE_FIELDS.map((f) => <div style={{ gridColumn: f.width === 'full' ? '1 / -1' : 'auto' }} key={f.key}><Field config={f} value={form[f.key]} onChange={(v) => setForm((s) => ({ ...s, [f.key]: v }))} /></div>)}
           </div>
+          <div className="card" style={{ marginTop: 16, padding: 14, background: 'var(--bg-tint)' }}>
+            <div className="flex" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <strong>Login access</strong>
+                <div className="form-hint" style={{ marginTop: 3 }}>Should this employee also be able to sign in to the ERP?</div>
+              </div>
+              <label className="check-label">
+                <input
+                  type="checkbox"
+                  checked={login.enabled}
+                  disabled={!can('users.create') || (edit !== 'new' && !!form.user_id)}
+                  onChange={(e) => setLogin((s) => ({ ...s, enabled: e.target.checked }))}
+                />
+                Create login credentials
+              </label>
+            </div>
+            {!can('users.create') && <div className="form-hint" style={{ marginTop: 8 }}>Users → Create permission is required to provision login access.</div>}
+            {edit !== 'new' && form.user_id && <div className="form-hint" style={{ marginTop: 8, color: 'var(--success)' }}>Already linked to {form.user_name || 'an ERP user'} — duplicate links are blocked.</div>}
+            {login.enabled && (
+              <div style={{ marginTop: 12 }}>
+                <div className="form-grid">
+                  <Field config={{ key: 'login_password', label: 'Temporary password', type: 'password', required: true, hint: 'Minimum 8 characters' }} value={login.password} onChange={(v) => setLogin((s) => ({ ...s, password: v }))} />
+                </div>
+                <label className="field-label" style={{ display: 'block', marginTop: 8 }}>Login role <span className="req">*</span></label>
+                <div className="flex gap-sm" style={{ flexWrap: 'wrap' }}>
+                  {(loginRoles || []).map((role: any) => (
+                    <button key={role.id} type="button" className={`btn sm ${login.roleIds.includes(Number(role.id)) ? 'primary' : 'outline'}`} onClick={() => setLogin((s) => ({ ...s, roleIds: s.roleIds.includes(Number(role.id)) ? s.roleIds.filter((id) => id !== Number(role.id)) : [...s.roleIds, Number(role.id)] }))}>
+                      {login.roleIds.includes(Number(role.id)) ? '✓ ' : ''}{role.name}
+                    </button>
+                  ))}
+                </div>
+                {!loginRoles?.length && <div className="form-hint" style={{ marginTop: 8 }}>No active login roles are available.</div>}
+              </div>
+            )}
+          </div>
         </Modal>
       )}
     </>
@@ -119,8 +190,8 @@ function LeaveTab() {
   const toast = useToast();
   const { can } = useAuth();
   const { data: types } = useFetch<any>('/hrms/leave-types');
-  const [refreshKey, setRefreshKey] = useState(0);
-  const { data, loading, reload } = useFetch<any>(`/hrms/leave-requests?_=${refreshKey}`);
+  const { data: employees } = useFetch<any>('/hrms/employees', { limit: 500, is_active: 1 });
+  const { data, loading, reload } = useFetch<any>('/hrms/leave-requests');
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ employee_id: '', leave_type_id: '', from_date: '', to_date: '', reason: '' });
   const create = async () => {
@@ -155,7 +226,7 @@ function LeaveTab() {
       <div className="card">
         <div className="card-header">
           <h3>Leave requests</h3>
-          <button className="btn primary sm" onClick={() => setCreateOpen(true)} style={{ marginLeft: 'auto' }}>+ Request leave</button>
+          {can('hrms.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)} style={{ marginLeft: 'auto' }}>+ Request leave</button>}
         </div>
         <DataTable columns={cols} rows={rows} loading={loading} rowKey="id" />
       </div>
@@ -163,8 +234,11 @@ function LeaveTab() {
         <Modal title="Submit leave request" onClose={() => setCreateOpen(false)} size="md"
           footer={<><button className="btn outline" onClick={() => setCreateOpen(false)}>Cancel</button><button className="btn primary" onClick={create}>Submit</button></>}>
           <div className="form-grid">
-            <div className="field" style={{ gridColumn: '1 / -1' }}><label>Employee ID</label>
-              <input className="input" type="number" value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} /></div>
+            <div className="field" style={{ gridColumn: '1 / -1' }}><label>Employee <span className="req">*</span></label>
+              <select className="input" value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}>
+                <option value="">Choose employee…</option>
+                {(employees?.data || []).map((employee: any) => <option key={employee.id} value={employee.id}>{employee.name} · {employee.employee_code}</option>)}
+              </select></div>
             <div className="field full"><label>Leave type</label>
               <select className="input" value={form.leave_type_id} onChange={(e) => setForm({ ...form, leave_type_id: e.target.value })}>
                 <option value="">Choose…</option>
@@ -185,11 +259,14 @@ function SalaryTab() {
   const toast = useToast();
   const { can } = useAuth();
   const { data, loading, reload } = useFetch<any>('/hrms/salary-structures');
+  const { data: employees } = useFetch<any>('/hrms/employees', { limit: 500, is_active: 1 });
   const [edit, setEdit] = useState<any>(null);
   const [form, setForm] = useState<Record<string, any>>({});
+  const [deleting, setDeleting] = useState<any>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const rows = data?.data || [];
   const FIELDS: FieldConfig[] = [
-    { key: 'employee_id', label: 'Employee ID', type: 'number', required: true },
+    { key: 'employee_id', label: 'Employee', type: 'select', required: true, options: (employees?.data || []).map((employee: any) => ({ value: employee.id, label: `${employee.name} · ${employee.employee_code}` })) },
     { key: 'effective_from', label: 'Effective from', type: 'date', required: true },
     { key: 'basic', label: 'Basic (₹)', type: 'number' },
     { key: 'hra', label: 'HRA (₹)', type: 'number' },
@@ -204,8 +281,18 @@ function SalaryTab() {
     { key: 'remarks', label: 'Remarks', type: 'textarea', width: 'full' },
   ];
   const save = async () => {
-    try { await api.post('/hrms/salary-structures', form); toast.push('Saved'); setEdit(null); reload(); }
+    try {
+      if (edit === 'new') await api.post('/hrms/salary-structures', form);
+      else await api.put(`/hrms/salary-structures/${edit.id}`, form);
+      toast.push('Salary structure saved'); setEdit(null); reload();
+    } catch (e) { toast.push(errMsg(e), 'error'); }
+  };
+  const remove = async () => {
+    if (!deleting) return;
+    setDeleteBusy(true);
+    try { await api.delete(`/hrms/salary-structures/${deleting.id}`); toast.push('Salary structure deleted'); setDeleting(null); reload(); }
     catch (e) { toast.push(errMsg(e), 'error'); }
+    finally { setDeleteBusy(false); }
   };
   const cols: ColumnConfig<any>[] = [
     { key: 'employee_name', label: 'Employee', render: (r) => <div style={{ fontWeight: 650 }}>{r.employee_name}</div> },
@@ -215,6 +302,10 @@ function SalaryTab() {
     { key: 'hra', label: 'HRA', render: (r) => fmtMoney(r.hra), align: 'right' },
     { key: 'gross', label: 'Gross', render: (r) => fmtMoney(r.basic + r.hra + r.da + r.special_allowance + r.other_allowance), align: 'right' },
     { key: 'pf_employee', label: 'PF (ee)', render: (r) => fmtMoney(r.pf_employee), align: 'right' },
+    { key: '_a', label: '', align: 'right', render: (r) => <div className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
+      {can('hrms.edit') && <button className="btn outline sm" onClick={() => { setForm({ ...r }); setEdit(r); }}>Edit</button>}
+      {can('hrms.delete') && <button className="btn outline sm" style={{ color: 'var(--danger)' }} onClick={() => setDeleting(r)}>Delete</button>}
+    </div> },
   ];
   return (
     <div className="card">
@@ -231,6 +322,7 @@ function SalaryTab() {
           </div>
         </Modal>
       )}
+      {deleting && <ConfirmDialog message={`Delete salary structure for ${deleting.employee_name || 'this employee'}?`} onCancel={() => setDeleting(null)} onConfirm={remove} busy={deleteBusy} />}
     </div>
   );
 }
@@ -243,6 +335,21 @@ function PayrollTab() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const { data, loading, reload } = useFetch<any>(`/hrms/payroll?payroll_month=${month}&page=${page}&limit=20`);
   const [busy, setBusy] = useState(false);
+  const [paymentFor, setPaymentFor] = useState<any>(null);
+  const [payment, setPayment] = useState({ paid_amount: '', payment_date: new Date().toISOString().slice(0, 10), payment_reference: '' });
+  const openPayment = (row: any) => {
+    setPaymentFor(row);
+    setPayment({ paid_amount: row.paid_amount ? String(row.paid_amount) : String(row.net_pay || ''), payment_date: row.payment_date ? String(row.payment_date).slice(0, 10) : new Date().toISOString().slice(0, 10), payment_reference: row.payment_reference || '' });
+  };
+  const savePayment = async () => {
+    if (!paymentFor) return;
+    try {
+      await api.put(`/hrms/payroll/${paymentFor.id}/payment`, { ...payment, paid_amount: Number(payment.paid_amount || 0) });
+      toast.push('Payroll payment status updated');
+      setPaymentFor(null);
+      reload();
+    } catch (e) { toast.push(errMsg(e), 'error'); }
+  };
   const runBulk = async () => {
     setBusy(true);
     try { await api.post('/hrms/payroll/generate-bulk', { payroll_month: month }); toast.push(`Generated payroll for ${month}`); reload(); }
@@ -261,6 +368,8 @@ function PayrollTab() {
     { key: 'payment_status', label: 'Status', render: (r) => (
       <span className={`badge ${r.payment_status === 'paid' ? 'green' : r.payment_status === 'partial' ? 'orange' : 'red'}`}>{r.payment_status}</span>
     ) },
+    { key: '_a', label: '', align: 'right', render: (r) => can('hrms.edit')
+      ? <button className="btn outline sm" onClick={() => openPayment(r)}>Record payment</button> : null },
   ];
   return (
     <div className="card">
@@ -273,6 +382,17 @@ function PayrollTab() {
       </div>
       <DataTable columns={cols} rows={rows} loading={loading} rowKey="id" />
       <PaginationBar page={page} total={total} limit={20} onPage={setPage} />
+      {paymentFor && (
+        <Modal title={`Record payment · ${paymentFor.employee_name}`} onClose={() => setPaymentFor(null)} size="sm"
+          footer={<><button className="btn outline" onClick={() => setPaymentFor(null)}>Cancel</button><button className="btn primary" onClick={savePayment}>Save payment</button></>}>
+          <p className="form-hint" style={{ marginTop: 0 }}>Net payable: <strong>{fmtMoney(paymentFor.net_pay)}</strong>. The status is calculated from the amount paid.</p>
+          <div className="form-grid">
+            <Field config={{ key: 'paid_amount', label: 'Amount paid (₹)', type: 'number', required: true }} value={payment.paid_amount} onChange={(v) => setPayment((s) => ({ ...s, paid_amount: v }))} />
+            <Field config={{ key: 'payment_date', label: 'Payment date', type: 'date' }} value={payment.payment_date} onChange={(v) => setPayment((s) => ({ ...s, payment_date: v }))} />
+            <Field config={{ key: 'payment_reference', label: 'Reference / UTR', type: 'text' }} value={payment.payment_reference} onChange={(v) => setPayment((s) => ({ ...s, payment_reference: v }))} />
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -285,7 +405,7 @@ function SummaryTiles() {
     { label: 'Active employees', value: data.active, ic: '👥', color: '#fff0e6' },
     { label: 'On leave (today)', value: data.onLeave, ic: '🌴', color: '#e8f3fb' },
     { label: 'Pending leave requests', value: data.pendingLeave, ic: '⏳', color: '#fef3d8' },
-    { label: `Payroll · ${data.month}`, value: fmtMoney(data.payroll?.net_due), ic: '🪙', color: '#dcfcee' },
+    { label: `Payroll due · ${data.month}`, value: fmtMoney(data.payroll?.pending_net ?? data.payroll?.net_due), ic: '🪙', color: '#dcfcee' },
   ];
   return (
     <div className="stat-grid">

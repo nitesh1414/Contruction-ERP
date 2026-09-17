@@ -46,14 +46,12 @@ const MODULE_ACTIONS = {
   attendance: ['view', 'create', 'edit', 'delete', 'export'],
   sales: ['view', 'create', 'edit', 'delete', 'export'],
   documents: ['view', 'create', 'edit', 'delete', 'export', 'upload', 'download'],
-  documents: ['view', 'create', 'edit', 'delete', 'export', 'upload', 'download'],
   notifications: ['view', 'create', 'edit'],
   reports: ['view', 'export'],
   admin: ['view', 'export'],
   hrms: ['view', 'create', 'edit', 'delete', 'approve', 'export'],
+  petty_cash: ['view', 'create', 'edit', 'delete', 'export'],
 };
-
-
 
 /** Permission sets per role code — 'all' expands to everything. */
 const ROLE_PERMS = {
@@ -135,6 +133,7 @@ const ROLE_PERMS = {
     notifications: ['view'], reports: ['view', 'export'],
   },
   accountant: {
+    users: ['view', 'create'], roles: ['view'],
     projects: ['view'], wings: ['view'],
     billing: ['view', 'create', 'edit', 'delete', 'export'],
     sales: ['view', 'export'],
@@ -180,13 +179,82 @@ const NOTIFICATION_EVENTS = [
   ['drawing_revision', 'Drawing revision awaiting approval'],
 ];
 
+/**
+ * Keep permission definitions forward-compatible for databases that were
+ * seeded before a module was introduced. `seed.js` intentionally skips demo
+ * data when users already exist, so this small sync must run first.
+ */
+async function ensureHrmsUserLinkConstraint(conn) {
+  const [indexes] = await conn.query(
+    `SELECT 1 FROM information_schema.statistics
+      WHERE table_schema = DATABASE() AND table_name = 'hrms_employees'
+        AND index_name = 'uq_hrms_employee_user' LIMIT 1`
+  );
+  if (indexes.length) return;
+  const [duplicates] = await conn.query(
+    `SELECT user_id, COUNT(*) AS count FROM hrms_employees
+      WHERE user_id IS NOT NULL GROUP BY user_id HAVING COUNT(*) > 1 LIMIT 1`
+  );
+  if (duplicates.length) {
+    throw new Error(`Cannot add unique HRMS user link: user ${duplicates[0].user_id} is linked more than once`);
+  }
+  await conn.query('ALTER TABLE hrms_employees ADD UNIQUE KEY uq_hrms_employee_user (user_id)');
+}
+
+async function syncHrmsDefaults(conn) {
+  const leaveTypes = [
+    ['Casual Leave', 'CL', 12, 1, '#0d6cc4', 'Short personal leave'],
+    ['Sick Leave', 'SL', 12, 1, '#e79a09', 'Illness and medical leave'],
+    ['Earned Leave', 'EL', 18, 1, '#0ea878', 'Planned annual leave'],
+    ['Unpaid Leave', 'LWP', 0, 0, '#e24545', 'Leave without pay'],
+  ];
+  for (const row of leaveTypes) {
+    await conn.query(
+      `INSERT INTO hrms_leave_types (name, code, annual_quota, is_paid, color_code, description)
+       VALUES (?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE code = code`, row
+    );
+  }
+}
+
+async function syncPermissions(conn) {
+  await ensureHrmsUserLinkConstraint(conn);
+  await syncHrmsDefaults(conn);
+  for (const [module, actions] of Object.entries(MODULE_ACTIONS)) {
+    for (const action of actions) {
+      await conn.query(
+        `INSERT INTO permissions (module, action, code, label) VALUES (?,?,?,?)
+         ON DUPLICATE KEY UPDATE module = VALUES(module), action = VALUES(action), label = VALUES(label)`,
+        [module, action, `${module}.${action}`, `${module} - ${action}`]
+      );
+    }
+  }
+
+  const [permRows] = await conn.query('SELECT id, code FROM permissions');
+  const permId = new Map(permRows.map((p) => [p.code, p.id]));
+  const [roles] = await conn.query('SELECT id, code FROM roles WHERE is_active = 1');
+  for (const role of roles) {
+    const perms = ROLE_PERMS[role.code];
+    if (!perms) continue;
+    const codes = perms === 'all'
+      ? Object.entries(MODULE_ACTIONS).flatMap(([module, actions]) => actions.map((action) => `${module}.${action}`))
+      : Object.entries(perms).flatMap(([module, actions]) => actions.map((action) => `${module}.${action}`));
+    for (const code of codes) {
+      if (permId.has(code)) {
+        await conn.query('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?,?)', [role.id, permId.get(code)]);
+      }
+    }
+  }
+}
+
 async function main() {
   const conn = await mysql.createConnection({ ...DB, multipleStatements: false });
   console.log(`[seed] connected to ${DB.database}`);
 
   const [existing] = await conn.query('SELECT COUNT(*) AS c FROM users');
   if (existing[0].c > 0 && !force) {
-    console.log('[seed] users already exist — skipping (use --force to re-seed)');
+    await syncPermissions(conn);
+    console.log('[seed] users already exist — synced permissions and skipped demo data');
     await conn.end();
     return;
   }
@@ -199,6 +267,8 @@ async function main() {
     await conn.query('SET FOREIGN_KEY_CHECKS = 1');
   }
 
+  await ensureHrmsUserLinkConstraint(conn);
+  await syncHrmsDefaults(conn);
   const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
   const demoHash = await bcrypt.hash(DEMO_PASSWORD, 10);
 

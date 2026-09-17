@@ -93,7 +93,8 @@ function enumCheck(table, t, cols, elements, paramsRef, sql) {
 function handleInsert(sql, params) {
   const m = /INSERT INTO\s+`?(\w+)`?\s*\(([^)]*)\)\s*VALUES\s*([\s\S]*)$/i.exec(sql.trim());
   if (!m) { fail(`Unparseable INSERT: ${sql.slice(0, 110)}`); return null; }
-  const [, table, colList, valuesPart] = m;
+  const [, table, colList, rawValuesPart] = m;
+  const valuesPart = rawValuesPart.split(/\s+ON DUPLICATE KEY UPDATE\s+/i)[0];
   const cols = colList.split(',').map((c) => c.trim().replace(/`/g, ''));
   const t = colCheck(table, cols, sql);
   if (!t) return null;
@@ -196,8 +197,12 @@ async function query(sql, params) {
     return [rowsOf('units').filter((r) => r.project_id === projectId && nums.includes(r.unit_number))
       .map((r) => ({ id: r.id, wing_id: r.wing_id, floor_id: r.floor_id, price: r.price })) , []];
   }
+  if (/^SELECT 1 FROM information_schema\.statistics/i.test(s)) {
+    stats.selects += 1;
+    return [[{ 1: 1 }], []];
+  }
   if (upper.startsWith('SHOW FULL TABLES')) return [[], []];
-  if (upper.startsWith('SET ') || upper.startsWith('TRUNCATE')) return [[], []];
+  if (upper.startsWith('SET ') || upper.startsWith('TRUNCATE') || upper.startsWith('ALTER TABLE')) return [[], []];
 
   if (!validateParams(s, params || [])) return [{}, []];
 

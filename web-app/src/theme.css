@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
 /* ================================================================
    Construction ERP — design system
    Coral brand, navy sidebar, light canvas.
@@ -281,6 +282,8 @@ table.data .num { font-variant-numeric: tabular-nums; }
 textarea.input { resize: vertical; min-height: 80px; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 18px; }
 .form-grid .full { grid-column: 1 / -1; }
+.check-label { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.check-label input { accent-color: var(--brand); }
 .form-hint { font-size: 12.5px; color: var(--ink-3); }
 
 .filter-bar { display: flex; gap: 11px; align-items: flex-end; flex-wrap: wrap; padding: 16px 22px; border-bottom: 1px solid var(--line); background: var(--bg-tint); border-top-left-radius: var(--radius); border-top-right-radius: var(--radius); }
@@ -427,4 +430,91 @@ textarea.input { resize: vertical; min-height: 80px; }
   .kv dt { margin-top: 8px; }
   table.data { font-size: 14px; }
   .auth-card { padding: 28px 22px; }
+}
+
+/* -------------------------------------------------------------------------
+   Buildcontrol density layer
+   The operator console is intentionally compact: construction teams need the
+   table and project canvas, not large decorative chrome. Poppins is used for
+   labels/navigation and Roboto keeps dense data easy to scan.
+   ------------------------------------------------------------------------- */
+:root {
+  --font-body: 'Roboto', Arial, sans-serif;
+  --font-ui: 'Poppins', Arial, sans-serif;
+  font-family: var(--font-body);
+}
+body { font-family: var(--font-body); font-size: 14px; line-height: 1.42; }
+h1, h2, h3, h4, .sidebar, .topbar .page-title, .btn, .field label, .tabs button,
+.sidebar .nav-section, table.data th { font-family: var(--font-ui); }
+h1 { font-size: 24px; } h2 { font-size: 19px; } h3 { font-size: 15.5px; } h4 { font-size: 14px; }
+
+.sidebar { width: 228px; }
+.sidebar .brand { gap: 9px; padding: 14px 14px 12px; font-size: 16px; }
+.sidebar .brand .logo-mark { width: 32px; height: 32px; border-radius: 8px; font-size: 16px; }
+.sidebar .brand small { font-size: 9px; margin-top: 1px; }
+.sidebar nav { padding: 3px 7px 14px; }
+.sidebar .nav-section { margin: 12px 7px 4px; font-size: 9.5px; letter-spacing: .07em; }
+.sidebar a { gap: 8px; padding: 7px 8px; margin: 1px 0; border-radius: 7px; font-size: 12.5px; }
+.sidebar a .icon { width: 21px; font-size: 15px; }
+.sidebar-footer { padding: 11px 14px; font-size: 10px; }
+
+.topbar { padding: 8px 18px; gap: 10px; }
+.topbar .page-title { font-size: 17px; }
+.content { max-width: none; padding: 18px 22px 32px; }
+.content > * + * { margin-top: 14px; }
+.topbar-search { padding: 6px 11px; min-width: 220px; }
+.topbar-search input { font-size: 12.5px; }
+.user-chip { gap: 7px; padding: 4px 10px 4px 5px; }
+.user-chip .avatar { width: 29px; height: 29px; font-size: 12px; }
+.user-chip .name { font-size: 12.5px; } .user-chip .role { font-size: 10px; }
+.bell-btn { width: 34px; height: 34px; border-radius: 9px; font-size: 15px; }
+
+.card { border-radius: 10px; }
+.card-pad { padding: 16px; }
+.card-header { gap: 9px; padding: 11px 16px; }
+.stat-grid { gap: 11px; }
+.stat-card { padding: 13px; gap: 10px; border-radius: 10px; }
+.stat-card .ic { width: 40px; height: 40px; border-radius: 10px; font-size: 18px; }
+.stat-card .val { font-size: 21px; } .stat-card .lbl { font-size: 12px; } .stat-card .sub { font-size: 11px; }
+.grid-2, .grid-3, .grid-4, .grid-12 { gap: 13px; }
+
+/* Bootstrap-compatible table classes with restrained zebra striping. */
+.table { --bs-table-bg: transparent; --bs-table-striped-bg: #f7f9fc; --bs-table-hover-bg: #fff1ea; }
+table.data, table.table.data { font-size: 12.5px; }
+table.data th, table.data td { padding: 8px 10px; }
+table.data th { font-size: 10px; letter-spacing: .045em; }
+table.table-striped > tbody > tr:nth-of-type(odd) > * { background-color: var(--bs-table-striped-bg); }
+table.table-hover > tbody > tr:hover > * { background-color: var(--bs-table-hover-bg); }
+table.data tbody tr:hover { background: transparent; }
+
+.btn { padding: 8px 12px; font-size: 12.5px; border-radius: 7px; }
+.btn.sm { padding: 5px 9px; font-size: 11.5px; border-radius: 6px; }
+.field { gap: 4px; margin-bottom: 10px; }
+.field label { font-size: 11.5px; }
+.input, select.input, textarea.input { font-size: 13px; padding: 7px 10px; border-radius: 7px; }
+textarea.input { min-height: 66px; }
+.form-grid { gap: 0 12px; } .form-hint { font-size: 11px; }
+.filter-bar { gap: 8px; padding: 10px 16px; }
+.filter-bar .field { min-width: 125px; }
+.filter-bar label { font-size: 11px; }
+.modal-overlay { padding: 24px 12px; }
+.modal { border-radius: 11px; }
+.modal-header { padding: 12px 16px; gap: 9px; }
+.modal-body { padding: 16px; }
+.modal-footer { padding: 10px 16px; gap: 8px; }
+.tabs { gap: 1px; }
+.tabs button { padding: 9px 12px; font-size: 12.5px; }
+.badge { gap: 4px; padding: 3px 8px; font-size: 10.5px; }
+.badge::before { width: 6px; height: 6px; }
+.pending-list li { padding: 9px 16px; gap: 8px; }
+.pager { gap: 8px; padding: 10px 16px; font-size: 11.5px; }
+.pager button { padding: 5px 9px; font-size: 11.5px; border-radius: 6px; }
+.empty { padding: 34px 14px; } .empty .big { font-size: 34px; }
+.spinner-wrap { padding: 32px; gap: 8px; }
+.toast-region { bottom: 16px; right: 16px; gap: 7px; }
+.toast { padding: 10px 13px; font-size: 12.5px; }
+
+@media (max-width: 900px) {
+  .content { padding: 14px 12px 26px; }
+  .topbar { padding: 7px 12px; }
 }

@@ -40,10 +40,10 @@ export default function Users() {
         await api.post('/users', payload);
         toast.push('User created');
       } else {
-        const { roleIds, projectAccess, password, ...rest } = payload;
+        const { roleIds, roleIdsChanged, projectAccess, password, ...rest } = payload;
         void password;
         await api.put(`/users/${payload.id}`, rest);
-        if (Array.isArray(roleIds)) await api.put(`/users/${payload.id}/roles`, { roleIds });
+        if (roleIdsChanged && Array.isArray(roleIds)) await api.put(`/users/${payload.id}/roles`, { roleIds });
         if (Array.isArray(projectAccess)) await api.put(`/users/${payload.id}/project-access`, { entries: projectAccess });
         toast.push('User updated');
       }
@@ -86,6 +86,9 @@ export default function Users() {
           { key: 'employee_code', label: 'Code', render: (u: any) => <span className="mono">{u.employee_code || '—'}</span> },
           { key: 'phone', label: 'Phone' },
           { key: 'role_names', label: 'Roles', render: (u: any) => (u.role_names || '—').split(', ').filter(Boolean).map((r: string) => <Badge key={r} value="purple" label={r} />).reduce((p: any, c: any) => [p, ' ', c], <span />) },
+          { key: 'employee_id', label: 'HR / Payroll', render: (u: any) => u.employee_id
+            ? <span className="badge green">Linked · {u.linked_employee_code || 'employee'}</span>
+            : <span className="badge gray">No employee</span> },
           { key: 'last_login_at', label: 'Last login', render: (u: any) => (u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : <span className="muted">never</span>) },
           { key: 'status', label: 'Status', render: (u: any) => <Badge value={u.status === 'active' ? 'completed' : 'cancelled'} label={u.status} /> },
           {
@@ -108,8 +111,9 @@ export default function Users() {
           onClose={() => setEditUser(null)}
           onSave={save}
           busy={busy}
-          roles={roles || []}
+          roles={(roles || []).filter((role: any) => me?.isSuperAdmin || !['admin', 'super_admin'].includes(role.code))}
           projects={projects?.data || []}
+          canCreateEmployee={can('hrms.create')}
         />
       )}
 
@@ -133,12 +137,18 @@ export default function Users() {
   );
 }
 
-function UserFormModal({ user, onClose, onSave, busy, roles, projects }: {
-  user: any | null; onClose: () => void; onSave: (payload: any, isNew: boolean) => void; busy: boolean; roles: any[]; projects: any[];
+function UserFormModal({ user, onClose, onSave, busy, roles, projects, canCreateEmployee }: {
+  user: any | null; onClose: () => void; onSave: (payload: any, isNew: boolean) => void; busy: boolean; roles: any[]; projects: any[]; canCreateEmployee: boolean;
 }) {
   const isNew = !user;
   const [form, setForm] = useState<any>({ name: user?.name || '', email: user?.email || '', phone: user?.phone || '', employee_code: user?.employee_code || '', status: user?.status || 'active', password: '' });
   const [roleIds, setRoleIds] = useState<number[]>(user?.roles?.map((r: any) => r.id) || []);
+  const initialRoleIds = user?.roles?.map((r: any) => Number(r.id)).sort((a: number, b: number) => a - b) || [];
+  const [createEmployee, setCreateEmployee] = useState(false);
+  const [employeeForm, setEmployeeForm] = useState<any>({
+    department: '', designation: '', date_of_joining: '', employment_type: 'permanent',
+    status: 'active', project_id: '', wing_id: '',
+  });
   const [access, setAccess] = useState<{ project_id: number | ''; wing_id: number }[]>(
     (user?.projectAccess || []).map((p: any) => ({ project_id: p.project_id, wing_id: p.wing_id ?? 0 }))
   );
@@ -147,7 +157,23 @@ function UserFormModal({ user, onClose, onSave, busy, roles, projects }: {
 
   const submit = () => {
     if (isNew && (!form.password || form.password.length < 8)) { toast.push('Password must be at least 8 characters', 'error'); return; }
-    onSave({ ...form, id: user?.id, roleIds, projectAccess: access.filter((a) => a.project_id) }, isNew);
+    if (isNew && !roleIds.length) { toast.push('Select at least one role for the user', 'error'); return; }
+    const normalizedRoleIds = [...roleIds].sort((a, b) => a - b);
+    const roleIdsChanged = normalizedRoleIds.length !== initialRoleIds.length || normalizedRoleIds.some((id, index) => id !== initialRoleIds[index]);
+    const payload: any = { ...form, id: user?.id, roleIds, roleIdsChanged, projectAccess: access.filter((a) => a.project_id) };
+    if (isNew && createEmployee) {
+      payload.createEmployee = true;
+      payload.employee = {
+        ...employeeForm,
+        employee_code: form.employee_code,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        project_id: employeeForm.project_id || null,
+        wing_id: employeeForm.wing_id || null,
+      };
+    }
+    onSave(payload, isNew);
   };
 
   return (
@@ -162,6 +188,37 @@ function UserFormModal({ user, onClose, onSave, busy, roles, projects }: {
         {isNew && <Field config={{ key: 'password', label: 'Temporary password', type: 'password', required: true, hint: 'Min 8 characters — user should change it after first login' }} value={form.password} onChange={(v) => setForm((s: any) => ({ ...s, password: v }))} />}
         <Field config={{ key: 'status', label: 'Status', type: 'select', options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }] }} value={form.status} onChange={(v) => setForm((s: any) => ({ ...s, status: v }))} />
       </div>
+
+      {isNew && (
+        <div className="card" style={{ marginTop: 16, padding: 14, background: 'var(--bg-tint)' }}>
+          <div className="flex" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <strong>HR & Payroll link</strong>
+              <div className="form-hint" style={{ marginTop: 3 }}>Should this user also receive an employee record for leave, salary and payroll?</div>
+            </div>
+            <label className="check-label">
+              <input type="checkbox" checked={createEmployee} disabled={!canCreateEmployee} onChange={(e) => setCreateEmployee(e.target.checked)} />
+              Create employee record
+            </label>
+          </div>
+          {!canCreateEmployee && <div className="form-hint" style={{ marginTop: 8 }}>HRMS → Create permission is required to add the linked payroll employee record.</div>}
+          {createEmployee && (
+            <div className="form-grid" style={{ marginTop: 12 }}>
+              <Field config={{ key: 'department', label: 'Department', type: 'text' }} value={employeeForm.department} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, department: v }))} />
+              <Field config={{ key: 'designation', label: 'Designation', type: 'text' }} value={employeeForm.designation} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, designation: v }))} />
+              <Field config={{ key: 'date_of_joining', label: 'Date of joining', type: 'date' }} value={employeeForm.date_of_joining} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, date_of_joining: v }))} />
+              <Field config={{ key: 'employment_type', label: 'Employment type', type: 'select', options: [{ value: 'permanent', label: 'Permanent' }, { value: 'contract', label: 'Contract' }, { value: 'probation', label: 'Probation' }, { value: 'intern', label: 'Intern' }] }} value={employeeForm.employment_type} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, employment_type: v }))} />
+              <Field config={{ key: 'project_id', label: 'Payroll project', type: 'select', options: projects.map((p: any) => ({ value: p.id, label: `${p.name} · ${p.code}` })) }} value={employeeForm.project_id} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, project_id: v, wing_id: '' }))} />
+              <Field config={{ key: 'status', label: 'Employee status', type: 'select', options: [{ value: 'active', label: 'Active' }, { value: 'on_leave', label: 'On leave' }] }} value={employeeForm.status} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, status: v }))} />
+            </div>
+          )}
+        </div>
+      )}
+      {user?.employee && !isNew && (
+        <div className="form-hint" style={{ color: 'var(--success)', margin: '12px 0' }}>
+          ✓ Linked HR/payroll employee: {user.employee.employee_code} · {user.employee.status}
+        </div>
+      )}
 
       <h3>Roles</h3>
       <div className="flex gap-sm" style={{ flexWrap: 'wrap', marginBottom: 16 }}>

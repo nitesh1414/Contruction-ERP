@@ -32,8 +32,8 @@ export function requireAnyPermission(...codes) {
  * Attaches req.projectScope = null | Set<number>
  *   req.wingScope = Map<projectId, Set<wingId>> (empty set = all wings)
  */
-export async function loadProjectScope(userId, isSuperAdmin) {
-  if (isSuperAdmin) return { projectScope: null, wingScope: new Map() };
+export async function loadProjectScope(userId, isGlobalAdmin) {
+  if (isGlobalAdmin) return { projectScope: null, wingScope: new Map() };
   const rows = await query('SELECT project_id, wing_id FROM user_projects WHERE user_id = ?', [userId]);
   if (rows.length === 0) return { projectScope: new Set(), wingScope: new Map() };
   const projectScope = new Set(rows.map((r) => r.project_id));
@@ -64,7 +64,8 @@ export function assertProjectAccess(req, projectId, wingId = null) {
 /** Middleware that attaches project scope to the request (after authenticate). */
 export const attachProjectScope = async (req, _res, next) => {
   try {
-    const { projectScope, wingScope } = await loadProjectScope(req.user.id, req.user.isSuperAdmin);
+    const isGlobalAdmin = req.user.isSuperAdmin || req.user.roles?.some((role) => role.code === 'admin');
+    const { projectScope, wingScope } = await loadProjectScope(req.user.id, isGlobalAdmin);
     req.projectScope = projectScope;
     req.wingScope = wingScope;
     next();

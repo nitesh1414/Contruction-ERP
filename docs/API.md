@@ -38,15 +38,17 @@ Tokens: access token (default 12 h) + rotating refresh token (30 d, revocable �
 
 | Method | Path | Perm | Description |
 |---|---|---|---|
-| GET | `/users` `?search&status&roleId` | view | list with roles |
+| GET | `/users` `?search&status&roleId` | view | list with roles and `employee_id`, `linked_employee_code`, `employee_status` |
 | GET | `/users/export` | export | CSV |
-| GET | `/users/:id` | view | detail incl. roles + project access |
-| POST | `/users` | create | `{ name, email, password, phone?, employee_code? }` |
-| PUT | `/users/:id` | edit | profile fields + `status` (activate/deactivate) |
-| PUT | `/users/:id/roles` | edit | `{ role_ids: [] }` |
-| PUT | `/users/:id/project-access` | edit | `{ access: [{ project_id, wing_id|null }] }` |
-| PUT | `/users/:id/reset-password` | edit | admin reset `{ new_password }` |
-| DELETE | `/users/:id` | delete | soft deactivate |
+| GET | `/users/:id` | view | detail incl. roles, project access and linked `employee` object |
+| POST | `/users` | create | `{ name, email, password, phone?, employee_code?, roleIds?, projectAccess?, createEmployee?, employee? }` |
+| PUT | `/users/:id` | edit | profile fields + `status` (activate/deactivate); linked employee identity is updated transactionally |
+| PUT | `/users/:id/roles` | edit | `{ roleIds: [] }` |
+| PUT | `/users/:id/project-access` | edit | `{ entries: [{ project_id, wing_id|null }] }` |
+| PUT | `/users/:id/reset-password` | edit | admin reset `{ newPassword }` |
+| DELETE | `/users/:id` | delete | delete login; linked HR employee is retained with `user_id = NULL` |
+
+When `createEmployee` is true, `employee` may contain `employee_code`, `department`, `designation`, `date_of_joining`, `employment_type`, `status`, `project_id`, `wing_id`, bank/tax fields and remarks. The user is inserted, roles/project access are assigned, and the employee is inserted or linked in one transaction. An existing unlinked employee with the same employee code or email is linked instead of duplicated. Project scope is checked for every employee/project assignment.
 
 ## /roles *(roles.* perms)*
 
@@ -106,6 +108,32 @@ Status: `pending | in_progress | completed | delayed`.
 
 ## /boq
 `GET /boq?projectId` · `POST /boq` `{project_id, title, tax_percent?, discount?}` · `GET /boq/:id` (header + items + totals) · `PUT /boq/:id` · `DELETE /boq/:id` · `PUT /boq/items/:itemId` `{quantity?, rate?, actual_quantity?, actual_rate?}` — estimated & actual amounts and **quantity / cost / % variances** recomputed server-side · `POST /boq/:id/import-json` `{items:[…]}` bulk import · `GET /boq/template-csv` blank CSV template · `GET /boq/:id/export` CSV · `GET /boq/export?projectId` all BOQs CSV · CRUD `/boq/categories`.
+
+## /petty-cash *(petty_cash.* perms)*
+`GET /petty-cash?projectId&txn_type&category&from&to&search` · `GET /petty-cash/summary?projectId` — cash-on-hand, category totals and recent activity · `GET /petty-cash/export` CSV · `POST /petty-cash` `{project_id, txn_type: topup|expense|replenish, amount, txn_date, category?, paid_to?, received_by?, description?, remarks?}` · `POST /petty-cash/topup` (same body with `txn_type` forced to `topup`) · `PUT /petty-cash/:id` · `DELETE /petty-cash/:id`. Entries and summaries are project-scoped.
+
+## /hrms *(hrms.* perms)*
+`GET /hrms/summary` (includes `totalEmployees`, `linkedLogins`, active/on-leave counts and payroll totals) · `GET /hrms/login-roles` (active roles safe for employee login assignment) · CRUD `/hrms/employees` (filters `projectId`, `department`, `status`, `search`) · `POST /hrms/employees/:id/login`.
+
+`POST /hrms/employees` accepts the employee fields plus the optional login workflow:
+
+```json
+{
+  "employee_code": "EMP-104",
+  "name": "Asha Rao",
+  "email": "asha@example.com",
+  "department": "Accounts",
+  "designation": "Payroll Officer",
+  "project_id": 12,
+  "create_login": true,
+  "login_password": "temporary-secret",
+  "login_role_ids": [4]
+}
+```
+
+`create_login` requires `users.create`, an email, an eight-character password and at least one active role. The employee and new `users` row, role links and `hrms_employees.user_id` link are committed transactionally. If the email already belongs to an unlinked user, that login is linked rather than duplicated. `POST /hrms/employees/:id/login` accepts `{ password, roleIds }` for adding access to an existing unlinked employee. A login already linked to another employee returns a conflict. The database unique key `uq_hrms_employee_user` also prevents one user from being linked twice.
+
+The remaining workflows are CRUD `/hrms/leave-types` · `GET/POST /hrms/leave-requests` · `PUT /hrms/leave-requests/:id/decide` `{status: approved|rejected|cancelled, remarks?}` · `GET/POST/PUT/DELETE /hrms/salary-structures` · `GET /hrms/payroll?payroll_month=YYYY-MM` · `GET /hrms/payroll/:id` · `POST /hrms/payroll/generate` / `generate-bulk` · `PUT /hrms/payroll/:id/payment` `{paid_amount, payment_date?, payment_reference?}`. Payroll is generated from the active salary structure and approved leave; all project-linked records respect project scope.
 
 ## Quality
 

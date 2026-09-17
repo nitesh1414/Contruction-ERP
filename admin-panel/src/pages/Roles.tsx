@@ -143,8 +143,8 @@ function PermissionMatrixModal({ role, onClose, onSaved }: { role: any; onClose:
         <button className="btn primary" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save permissions'}</button>
       </>}>
       {loading ? <div className="spinner-wrap"><div className="spinner" /></div> : (
-        <div className="table-wrap" style={{ maxHeight: '62vh', overflowY: 'auto' }}>
-          <table className="data">
+        <div className="table-responsive table-wrap" style={{ maxHeight: '62vh', overflowY: 'auto' }}>
+          <table className="table table-striped table-hover data">
             <thead>
               <tr>
                 <th style={{ position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>Module</th>

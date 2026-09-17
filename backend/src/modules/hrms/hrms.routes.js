@@ -7,11 +7,13 @@ const router = Router();
 router.use(authenticate, attachProjectScope);
 
 router.get('/summary',         requirePermission('hrms', 'view'),    ctrl.hrmsSummary);
+router.get('/login-roles',     requirePermission('hrms', 'view'),    ctrl.loginRoles);
 
 // employees
 router.get('/employees',       requirePermission('hrms', 'view'),    ctrl.listEmployees);
 router.get('/employees/:id',   requirePermission('hrms', 'view'),    ctrl.getEmployee);
 router.post('/employees',      requirePermission('hrms', 'create'),  ctrl.createEmployee);
+router.post('/employees/:id/login', requirePermission('hrms', 'create'), ctrl.createEmployeeLogin);
 router.put('/employees/:id',   requirePermission('hrms', 'edit'),    ctrl.updateEmployee);
 router.delete('/employees/:id',requirePermission('hrms', 'delete'),  ctrl.deleteEmployee);
 
