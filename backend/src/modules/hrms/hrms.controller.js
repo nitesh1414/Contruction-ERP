@@ -53,6 +53,7 @@ export const getEmployee = asyncHandler(async (req, res) => {
        FROM hrms_employees e LEFT JOIN projects p ON p.id=e.project_id LEFT JOIN wings w ON w.id=e.wing_id
       WHERE e.id = ?`, [req.params.id]);
   if (!e) throw notFound('Employee not found');
+  assertProjectAccess(req, e.project_id ? Number(e.project_id) : null, e.wing_id ? Number(e.wing_id) : null);
   const structures = await query(`SELECT * FROM hrms_salary_structures WHERE employee_id = ? ORDER BY effective_from DESC`, [req.params.id]);
   const recentLeave = await query(
     `SELECT lr.*, lt.name AS leave_type_name
@@ -86,8 +87,10 @@ export const createEmployee = asyncHandler(async (req, res) => {
 export const updateEmployee = asyncHandler(async (req, res) => {
   const existing = await queryOne('SELECT * FROM hrms_employees WHERE id = ?', [req.params.id]);
   if (!existing) throw notFound('Employee not found');
+  assertProjectAccess(req, existing.project_id ? Number(existing.project_id) : null, existing.wing_id ? Number(existing.wing_id) : null);
   const data = {};
   for (const f of EMPLOYEE_FIELDS) if (req.body[f] !== undefined) data[f] = nullify(req.body[f]);
+  if (data.project_id) assertProjectAccess(req, Number(data.project_id), data.wing_id ? Number(data.wing_id) : null);
   const keys = Object.keys(data);
   if (keys.length) await query(`UPDATE hrms_employees SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`,
     [...keys.map((k) => data[k]), req.params.id]);
@@ -96,8 +99,9 @@ export const updateEmployee = asyncHandler(async (req, res) => {
 });
 
 export const deleteEmployee = asyncHandler(async (req, res) => {
-  const existing = await queryOne('SELECT id FROM hrms_employees WHERE id = ?', [req.params.id]);
+  const existing = await queryOne('SELECT id, project_id, wing_id FROM hrms_employees WHERE id = ?', [req.params.id]);
   if (!existing) throw notFound('Employee not found');
+  assertProjectAccess(req, existing.project_id ? Number(existing.project_id) : null, existing.wing_id ? Number(existing.wing_id) : null);
   await query('DELETE FROM hrms_employees WHERE id = ?', [req.params.id]);
   await audit(req, { action: 'delete', module: 'hrms', recordId: req.params.id });
   res.json({ success: true, message: 'Employee deleted' });
@@ -157,8 +161,11 @@ export const createLeaveRequest = asyncHandler(async (req, res) => {
 export const decideLeave = asyncHandler(async (req, res) => {
   const { status, remarks } = req.body;
   if (!['approved', 'rejected', 'cancelled'].includes(status)) throw badRequest('status must be approved, rejected or cancelled');
-  const existing = await queryOne('SELECT * FROM hrms_leave_requests WHERE id = ?', [req.params.id]);
+  const existing = await queryOne(
+    `SELECT lr.*, e.project_id, e.wing_id FROM hrms_leave_requests lr
+       JOIN hrms_employees e ON e.id = lr.employee_id WHERE lr.id = ?`, [req.params.id]);
   if (!existing) throw notFound('Leave request not found');
+  assertProjectAccess(req, existing.project_id ? Number(existing.project_id) : null, existing.wing_id ? Number(existing.wing_id) : null);
   if (existing.status !== 'pending') throw badRequest(`Already ${existing.status}`);
   await query(
     `UPDATE hrms_leave_requests SET status = ?, decided_by = ?, decided_on = NOW(), decision_remarks = ? WHERE id = ?`,
@@ -173,10 +180,15 @@ export const listSalaryStructures = asyncHandler(async (req, res) => {
   const conditions = [];
   const params = [];
   if (req.query.employeeId) { conditions.push('ss.employee_id = ?'); params.push(req.query.employeeId); }
+  const scope = projectScopeSql(req, 'e.project_id');
+  const whereSql = `WHERE ${conditions.length ? conditions.join(' AND ') : '1=1'}${scope.clause}`;
+  params.push(...scope.params);
   const rows = await query(
-    `SELECT ss.*, e.name AS employee_name, e.employee_code, e.department FROM hrms_salary_structures ss
+    `SELECT ss.*, e.name AS employee_name, e.employee_code, e.department, e.project_id, pr.name AS project_name
+       FROM hrms_salary_structures ss
        JOIN hrms_employees e ON e.id = ss.employee_id
-      WHERE ${conditions.length ? conditions.join(' AND ') : '1=1'}
+       LEFT JOIN projects pr ON pr.id = e.project_id
+      ${whereSql}
       ORDER BY e.name, ss.effective_from DESC LIMIT 1000`, params);
   res.json({ success: true, data: rows });
 });
@@ -188,6 +200,9 @@ export const upsertSalaryStructure = asyncHandler(async (req, res) => {
     if (req.body[f] !== undefined) data[f] = nullify(req.body[f]);
   }
   if (!data.employee_id || !data.effective_from) throw badRequest('employee_id and effective_from are required');
+  const employee = await queryOne('SELECT project_id, wing_id FROM hrms_employees WHERE id = ?', [data.employee_id]);
+  if (!employee) throw notFound('Employee not found');
+  assertProjectAccess(req, employee.project_id ? Number(employee.project_id) : null, employee.wing_id ? Number(employee.wing_id) : null);
   const existing = await queryOne('SELECT id FROM hrms_salary_structures WHERE employee_id = ? AND effective_from = ?',
     [data.employee_id, data.effective_from]);
   let result;
@@ -207,8 +222,11 @@ export const upsertSalaryStructure = asyncHandler(async (req, res) => {
 });
 
 export const deleteSalaryStructure = asyncHandler(async (req, res) => {
-  const existing = await queryOne('SELECT id FROM hrms_salary_structures WHERE id = ?', [req.params.id]);
+  const existing = await queryOne(
+    `SELECT ss.id, e.project_id, e.wing_id FROM hrms_salary_structures ss
+       JOIN hrms_employees e ON e.id = ss.employee_id WHERE ss.id = ?`, [req.params.id]);
   if (!existing) throw notFound('Salary structure not found');
+  assertProjectAccess(req, existing.project_id ? Number(existing.project_id) : null, existing.wing_id ? Number(existing.wing_id) : null);
   await query('DELETE FROM hrms_salary_structures WHERE id = ?', [req.params.id]);
   await audit(req, { action: 'delete', module: 'hrms_salary', recordId: req.params.id });
   res.json({ success: true, message: 'Deleted' });
@@ -228,7 +246,7 @@ export const listPayroll = asyncHandler(async (req, res) => {
   const whereSql = (conditions.length ? `WHERE ${conditions.join(' AND ')}` : 'WHERE 1=1') + scope.clause;
   params.push(...scope.params);
   const rows = await query(
-    `SELECT p.*, e.name AS employee_name, e.employee_code, e.department, pr.name AS project_name
+    `SELECT p.*, e.name AS employee_name, e.employee_code, e.department, e.project_id AS employee_project_id, pr.name AS project_name
        FROM hrms_payroll p JOIN hrms_employees e ON e.id = p.employee_id
        LEFT JOIN projects pr ON pr.id = e.project_id
      ${whereSql} ORDER BY p.payroll_month DESC, e.name LIMIT ? OFFSET ?`, [...params, limit, offset]);
@@ -239,12 +257,13 @@ export const listPayroll = asyncHandler(async (req, res) => {
 
 export const getPayroll = asyncHandler(async (req, res) => {
   const p = await queryOne(
-    `SELECT p.*, e.name AS employee_name, e.employee_code, e.department, pr.name AS project_name, g.name AS generated_by_name
+    `SELECT p.*, e.name AS employee_name, e.employee_code, e.department, e.project_id AS employee_project_id, pr.name AS project_name, g.name AS generated_by_name
        FROM hrms_payroll p JOIN hrms_employees e ON e.id = p.employee_id
        LEFT JOIN projects pr ON pr.id = e.project_id
        LEFT JOIN users g ON g.id = p.generated_by
       WHERE p.id = ?`, [req.params.id]);
   if (!p) throw notFound('Payroll record not found');
+  assertProjectAccess(req, p.employee_project_id ? Number(p.employee_project_id) : null);
   res.json({ success: true, data: p });
 });
 
@@ -252,6 +271,9 @@ export const getPayroll = asyncHandler(async (req, res) => {
 export const generateSingle = asyncHandler(async (req, res) => {
   const { employee_id, payroll_month } = req.body;
   if (!employee_id || !/^\d{4}-\d{2}$/.test(payroll_month || '')) throw badRequest('employee_id and payroll_month (YYYY-MM) required');
+  const employee = await queryOne('SELECT project_id FROM hrms_employees WHERE id = ?', [employee_id]);
+  if (!employee) throw notFound('Employee not found');
+  assertProjectAccess(req, employee.project_id ? Number(employee.project_id) : null);
   await generateFor(req.user, { employee_id, payroll_month });
   res.json({ success: true, data: await queryOne(
     'SELECT * FROM hrms_payroll WHERE employee_id = ? AND payroll_month = ?', [employee_id, payroll_month]) });
@@ -327,8 +349,11 @@ async function generateFor(user, { employee_id, payroll_month }) {
 
 export const updatePayrollPayment = asyncHandler(async (req, res) => {
   const { paid_amount, payment_date, payment_reference, payment_status } = req.body;
-  const existing = await queryOne('SELECT * FROM hrms_payroll WHERE id = ?', [req.params.id]);
+  const existing = await queryOne(
+    `SELECT p.*, e.project_id AS employee_project_id FROM hrms_payroll p
+       JOIN hrms_employees e ON e.id = p.employee_id WHERE p.id = ?`, [req.params.id]);
   if (!existing) throw notFound('Payroll record not found');
+  assertProjectAccess(req, existing.employee_project_id ? Number(existing.employee_project_id) : null);
   const data = {};
   if (paid_amount !== undefined) data.paid_amount = +Number(paid_amount).toFixed(2);
   if (payment_date !== undefined) data.payment_date = nullify(payment_date);
@@ -348,17 +373,21 @@ export const updatePayrollPayment = asyncHandler(async (req, res) => {
 
 /** Dashboard summary: active employees, on-leave today, payroll due. */
 export const hrmsSummary = asyncHandler(async (req, res) => {
+  const scope = projectScopeSql(req, 'e.project_id');
   const onLeave = await queryOne(
-    `SELECT COUNT(*) AS c FROM hrms_employees
-      WHERE is_active = 1 AND status = 'on_leave'`);
+    `SELECT COUNT(*) AS c FROM hrms_employees e
+      WHERE e.is_active = 1 AND e.status = 'on_leave'${scope.clause}`, scope.params);
   const active = await queryOne(
-    `SELECT COUNT(*) AS c FROM hrms_employees WHERE is_active = 1 AND status = 'active'`);
+    `SELECT COUNT(*) AS c FROM hrms_employees e WHERE e.is_active = 1 AND e.status = 'active'${scope.clause}`, scope.params);
   const pendingLeave = await queryOne(
-    `SELECT COUNT(*) AS c FROM hrms_leave_requests WHERE status = 'pending'`);
+    `SELECT COUNT(*) AS c FROM hrms_leave_requests lr
+       JOIN hrms_employees e ON e.id = lr.employee_id
+      WHERE lr.status = 'pending'${scope.clause}`, scope.params);
   const month = new Date().toISOString().slice(0, 7);
   const payroll = await queryOne(
-    `SELECT COALESCE(SUM(net_pay), 0) AS net_due, COALESCE(SUM(paid_amount), 0) AS paid, COUNT(*) AS records,
-            SUM(CASE WHEN payment_status = 'pending' THEN net_pay ELSE 0 END) AS pending_net
-       FROM hrms_payroll WHERE payroll_month = ?`, [month]);
+    `SELECT COALESCE(SUM(p.net_pay), 0) AS net_due, COALESCE(SUM(p.paid_amount), 0) AS paid, COUNT(*) AS records,
+            SUM(CASE WHEN p.payment_status = 'pending' THEN p.net_pay ELSE 0 END) AS pending_net
+       FROM hrms_payroll p JOIN hrms_employees e ON e.id = p.employee_id
+      WHERE p.payroll_month = ?${scope.clause}`, [month, ...scope.params]);
   res.json({ success: true, data: { onLeave: Number(onLeave.c), active: Number(active.c), pendingLeave: Number(pendingLeave.c), month, payroll } });
 });

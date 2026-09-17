@@ -46,14 +46,12 @@ const MODULE_ACTIONS = {
   attendance: ['view', 'create', 'edit', 'delete', 'export'],
   sales: ['view', 'create', 'edit', 'delete', 'export'],
   documents: ['view', 'create', 'edit', 'delete', 'export', 'upload', 'download'],
-  documents: ['view', 'create', 'edit', 'delete', 'export', 'upload', 'download'],
   notifications: ['view', 'create', 'edit'],
   reports: ['view', 'export'],
   admin: ['view', 'export'],
   hrms: ['view', 'create', 'edit', 'delete', 'approve', 'export'],
+  petty_cash: ['view', 'create', 'edit', 'delete', 'export'],
 };
-
-
 
 /** Permission sets per role code — 'all' expands to everything. */
 const ROLE_PERMS = {
@@ -180,13 +178,47 @@ const NOTIFICATION_EVENTS = [
   ['drawing_revision', 'Drawing revision awaiting approval'],
 ];
 
+/**
+ * Keep permission definitions forward-compatible for databases that were
+ * seeded before a module was introduced. `seed.js` intentionally skips demo
+ * data when users already exist, so this small sync must run first.
+ */
+async function syncPermissions(conn) {
+  for (const [module, actions] of Object.entries(MODULE_ACTIONS)) {
+    for (const action of actions) {
+      await conn.query(
+        `INSERT INTO permissions (module, action, code, label) VALUES (?,?,?,?)
+         ON DUPLICATE KEY UPDATE module = VALUES(module), action = VALUES(action), label = VALUES(label)`,
+        [module, action, `${module}.${action}`, `${module} - ${action}`]
+      );
+    }
+  }
+
+  const [permRows] = await conn.query('SELECT id, code FROM permissions');
+  const permId = new Map(permRows.map((p) => [p.code, p.id]));
+  const [roles] = await conn.query('SELECT id, code FROM roles WHERE is_active = 1');
+  for (const role of roles) {
+    const perms = ROLE_PERMS[role.code];
+    if (!perms) continue;
+    const codes = perms === 'all'
+      ? Object.entries(MODULE_ACTIONS).flatMap(([module, actions]) => actions.map((action) => `${module}.${action}`))
+      : Object.entries(perms).flatMap(([module, actions]) => actions.map((action) => `${module}.${action}`));
+    for (const code of codes) {
+      if (permId.has(code)) {
+        await conn.query('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?,?)', [role.id, permId.get(code)]);
+      }
+    }
+  }
+}
+
 async function main() {
   const conn = await mysql.createConnection({ ...DB, multipleStatements: false });
   console.log(`[seed] connected to ${DB.database}`);
 
   const [existing] = await conn.query('SELECT COUNT(*) AS c FROM users');
   if (existing[0].c > 0 && !force) {
-    console.log('[seed] users already exist — skipping (use --force to re-seed)');
+    await syncPermissions(conn);
+    console.log('[seed] users already exist — synced permissions and skipped demo data');
     await conn.end();
     return;
   }

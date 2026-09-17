@@ -16,10 +16,10 @@ const COPY = {
       'Super admins can review leave approvals and payroll exports there. The admin panel intentionally keeps these modules read-only via the API.',
     bulletHead: 'Where to manage HR & payroll',
     bullets: [
-      'Employee master, designation, department, project & wing assignment — /web/hrms/employees',
-      'Leave types, requests, approvals and the leave balance — /web/hrms/leave',
-      'Salary structures (basic, HRA, DA, PF, ESIC, PT) — /web/hrms/leave → Salary tab',
-      'Monthly payroll generation and per-employee net pay — /web/hrms/payroll',
+      'Employee master, designation, department and project assignment — Project-team app → /hrms → Employees',
+      'Leave requests, approvals and leave types — Project-team app → /hrms → Leave',
+      'Salary structures (basic, HRA, DA, PF, ESIC, PT) — Project-team app → /hrms → Salary structures',
+      'Monthly payroll generation and per-employee net pay — Project-team app → /hrms → Payroll',
     ],
   },
   'petty-cash': {
@@ -29,7 +29,7 @@ const COPY = {
       'Petty cash is recorded at the site level by accountants. Each transaction is project-scoped and tallies up into Cash & Petty summary cards on the dashboard. Open the operator app to add top-ups, expenses or replenishments.',
     bulletHead: 'Where to record petty cash',
     bullets: [
-      'Cash on hand, top-ups, expenses and category split — /web/petty-cash',
+      'Cash on hand, top-ups, expenses and category split — Project-team app → /petty-cash',
       'Project context picker — choose a project first; numbers roll up into Reports & Dashboards',
       'Add receipts and reference files — receipts.attach',
     ],

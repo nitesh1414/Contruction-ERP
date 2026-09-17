@@ -115,8 +115,8 @@ export function DataTable<T extends Record<string, any>>({
     );
   }
   return (
-    <div className="table-wrap">
-      <table className="data">
+    <div className="table-responsive table-wrap">
+      <table className="table table-striped table-hover data">
         <thead>
           <tr>{columns.map((c) => <th key={c.key} className={c.align === 'right' ? 'right' : ''}>{c.label}</th>)}</tr>
         </thead>

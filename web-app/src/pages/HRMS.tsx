@@ -15,6 +15,7 @@ function EmployeesTab() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<Record<string, any>>({});
+  const { data: projects } = useFetch<any>('/projects', { limit: 200 });
   const debounced = useDebounce(search);
   const params = useMemo(() => ({ page, limit: 20, search: debounced, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')) }), [page, debounced, filters]);
   const { data, loading, reload } = useFetch<any>('/hrms/employees', params);
@@ -38,7 +39,7 @@ function EmployeesTab() {
       { value: 'permanent', label: 'Permanent' }, { value: 'contract', label: 'Contract' }, { value: 'probation', label: 'Probation' }, { value: 'intern', label: 'Intern' } ] },
     { key: 'status', label: 'Status', type: 'select', options: [
       { value: 'active', label: 'Active' }, { value: 'on_leave', label: 'On leave' }, { value: 'resigned', label: 'Resigned' }, { value: 'terminated', label: 'Terminated' } ] },
-    { key: 'project_id', label: 'Project ID', type: 'number', placeholder: 'Project id (optional)' },
+    { key: 'project_id', label: 'Project', type: 'select', options: (projects?.data || []).map((p: any) => ({ value: p.id, label: `${p.name} · ${p.code}` })) },
     { key: 'is_active', label: 'Active', type: 'checkbox' },
     { key: 'remarks', label: 'Remarks', type: 'textarea', width: 'full' },
   ];
@@ -119,8 +120,8 @@ function LeaveTab() {
   const toast = useToast();
   const { can } = useAuth();
   const { data: types } = useFetch<any>('/hrms/leave-types');
-  const [refreshKey, setRefreshKey] = useState(0);
-  const { data, loading, reload } = useFetch<any>(`/hrms/leave-requests?_=${refreshKey}`);
+  const { data: employees } = useFetch<any>('/hrms/employees', { limit: 500, is_active: 1 });
+  const { data, loading, reload } = useFetch<any>('/hrms/leave-requests');
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ employee_id: '', leave_type_id: '', from_date: '', to_date: '', reason: '' });
   const create = async () => {
@@ -155,7 +156,7 @@ function LeaveTab() {
       <div className="card">
         <div className="card-header">
           <h3>Leave requests</h3>
-          <button className="btn primary sm" onClick={() => setCreateOpen(true)} style={{ marginLeft: 'auto' }}>+ Request leave</button>
+          {can('hrms.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)} style={{ marginLeft: 'auto' }}>+ Request leave</button>}
         </div>
         <DataTable columns={cols} rows={rows} loading={loading} rowKey="id" />
       </div>
@@ -163,8 +164,11 @@ function LeaveTab() {
         <Modal title="Submit leave request" onClose={() => setCreateOpen(false)} size="md"
           footer={<><button className="btn outline" onClick={() => setCreateOpen(false)}>Cancel</button><button className="btn primary" onClick={create}>Submit</button></>}>
           <div className="form-grid">
-            <div className="field" style={{ gridColumn: '1 / -1' }}><label>Employee ID</label>
-              <input className="input" type="number" value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} /></div>
+            <div className="field" style={{ gridColumn: '1 / -1' }}><label>Employee <span className="req">*</span></label>
+              <select className="input" value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })}>
+                <option value="">Choose employee…</option>
+                {(employees?.data || []).map((employee: any) => <option key={employee.id} value={employee.id}>{employee.name} · {employee.employee_code}</option>)}
+              </select></div>
             <div className="field full"><label>Leave type</label>
               <select className="input" value={form.leave_type_id} onChange={(e) => setForm({ ...form, leave_type_id: e.target.value })}>
                 <option value="">Choose…</option>
@@ -185,11 +189,12 @@ function SalaryTab() {
   const toast = useToast();
   const { can } = useAuth();
   const { data, loading, reload } = useFetch<any>('/hrms/salary-structures');
+  const { data: employees } = useFetch<any>('/hrms/employees', { limit: 500, is_active: 1 });
   const [edit, setEdit] = useState<any>(null);
   const [form, setForm] = useState<Record<string, any>>({});
   const rows = data?.data || [];
   const FIELDS: FieldConfig[] = [
-    { key: 'employee_id', label: 'Employee ID', type: 'number', required: true },
+    { key: 'employee_id', label: 'Employee', type: 'select', required: true, options: (employees?.data || []).map((employee: any) => ({ value: employee.id, label: `${employee.name} · ${employee.employee_code}` })) },
     { key: 'effective_from', label: 'Effective from', type: 'date', required: true },
     { key: 'basic', label: 'Basic (₹)', type: 'number' },
     { key: 'hra', label: 'HRA (₹)', type: 'number' },

@@ -107,6 +107,12 @@ Status: `pending | in_progress | completed | delayed`.
 ## /boq
 `GET /boq?projectId` · `POST /boq` `{project_id, title, tax_percent?, discount?}` · `GET /boq/:id` (header + items + totals) · `PUT /boq/:id` · `DELETE /boq/:id` · `PUT /boq/items/:itemId` `{quantity?, rate?, actual_quantity?, actual_rate?}` — estimated & actual amounts and **quantity / cost / % variances** recomputed server-side · `POST /boq/:id/import-json` `{items:[…]}` bulk import · `GET /boq/template-csv` blank CSV template · `GET /boq/:id/export` CSV · `GET /boq/export?projectId` all BOQs CSV · CRUD `/boq/categories`.
 
+## /petty-cash *(petty_cash.* perms)*
+`GET /petty-cash?projectId&txn_type&category&from&to&search` · `GET /petty-cash/summary?projectId` — cash-on-hand, category totals and recent activity · `GET /petty-cash/export` CSV · `POST /petty-cash` `{project_id, txn_type: topup|expense|replenish, amount, txn_date, category?, paid_to?, received_by?, description?, remarks?}` · `POST /petty-cash/topup` (same body with `txn_type` forced to `topup`) · `PUT /petty-cash/:id` · `DELETE /petty-cash/:id`. Entries and summaries are project-scoped.
+
+## /hrms *(hrms.* perms)*
+`GET /hrms/summary` · CRUD `/hrms/employees` (filters `projectId`, `department`, `status`, `search`) · CRUD `/hrms/leave-types` · `GET/POST /hrms/leave-requests` · `PUT /hrms/leave-requests/:id/decide` `{status: approved|rejected|cancelled, remarks?}` · `GET/POST/PUT/DELETE /hrms/salary-structures` · `GET /hrms/payroll?payroll_month=YYYY-MM` · `GET /hrms/payroll/:id` · `POST /hrms/payroll/generate` / `generate-bulk` · `PUT /hrms/payroll/:id/payment`. Payroll is generated from the active salary structure and approved leave; all project-linked records respect project scope.
+
 ## Quality
 
 **Test reports** — `GET /test-reports?projectId&testTypeId&result_status&status` · `POST /test-reports` multipart (document upload) `{project_id, test_type_id, sample_date, laboratory?, result_value?, result_status}` · `PUT /test-reports/:id` · `PUT /test-reports/:id/status` `{status: approved|rejected}` *(test_reports.approve)* · `DELETE /test-reports/:id` · CRUD `/test-types`.

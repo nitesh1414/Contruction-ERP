@@ -275,8 +275,8 @@ function PoCreateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () 
       </div>
 
       <h3>Items</h3>
-      <div className="table-wrap">
-        <table className="data">
+      <div className="table-responsive table-wrap">
+        <table className="table table-striped table-hover data">
           <thead><tr><th style={{ width: 260 }}>Material</th><th>Qty</th><th>Unit</th><th>Rate ₹</th><th>Tax %</th><th className="right">Amount</th><th /></tr></thead>
           <tbody>
             {items.map((item, idx) => {

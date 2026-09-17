@@ -16,7 +16,7 @@ const NAV: NavGroup[] = [
       { to: '/', label: 'Dashboard', icon: '📊' },
       { to: '/projects', label: 'Projects', icon: '🏗️', perm: 'projects.view' },
       { to: '/progress', label: 'Daily Progress', icon: '📋', perm: 'progress.view' },
-      { to: '/attendance', label: 'Attendance', icon: '👷', perm: 'workers.view' },
+      { to: '/workforce', label: 'Workforce & Attendance', icon: '👷', perm: 'workers.view' },
       { to: '/equipment', label: 'Equipment', icon: '🚜', perm: 'projects.view' },
     ],
   },
@@ -39,7 +39,7 @@ const NAV: NavGroup[] = [
       { to: '/materials', label: 'Materials & Inventory', icon: '🧱', perm: 'materials.view' },
       { to: '/boq', label: 'BOQ', icon: '📑', perm: 'boq.view' },
       { to: '/billing', label: 'Payments', icon: '💰', perm: 'billing.view' },
-      { to: '/petty-cash', label: 'Petty Cash', icon: '💵', perm: 'billing.view' },
+      { to: '/petty-cash', label: 'Petty Cash', icon: '💵', perm: 'petty_cash.view' },
       { to: '/sales', label: 'CRM & Sales', icon: '🏠', perm: 'sales.view' },
       { to: '/hrms', label: 'HR & Payroll', icon: '🧑‍💼', perm: 'hrms.view' },
     ],
@@ -91,7 +91,7 @@ function NotificationsBell() {
       const routes: Record<string, string> = {
         issues: '/issues', milestones: '/milestones', materials: '/materials', inventory: '/materials',
         inspections: '/inspections', test_reports: '/test-reports', sales: '/sales', documents: '/documents',
-        drawings: '/drawings', purchase_orders: '/materials?tab=pos', system: '/',
+        drawings: '/drawings', hrms: '/hrms', petty_cash: '/petty-cash', purchase_orders: '/materials?tab=pos', system: '/',
       };
       navigate(routes[n.module] || '/');
       setOpen(false);
@@ -139,7 +139,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/drawings': 'Drawings', '/issues': 'Issues & Snags', '/inspections': 'Inspections', '/test-reports': 'Test Reports',
   '/documents': 'Documents', '/materials': 'Materials & Inventory', '/boq': 'Bill of Quantities',
   '/billing': 'Payments', '/sales': 'CRM & Sales',
-  '/workforce': 'HR & Payroll', '/reports': 'Reports & Dashboards', '/profile': 'My Profile',
+  '/workforce': 'Workforce & Attendance', '/hrms': 'HR & Payroll', '/petty-cash': 'Petty Cash',
+  '/reports': 'Reports & Dashboards', '/profile': 'My Profile',
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {

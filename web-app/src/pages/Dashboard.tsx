@@ -197,7 +197,7 @@ export default function Dashboard() {
 
         <div className="card col-12">
           <div className="card-header"><h3>Module quick launch</h3>
-            <div className="actions muted" style={{ fontSize: 12 }}>Eleven module areas · click to jump straight in</div>
+            <div className="actions muted" style={{ fontSize: 12 }}>Core construction modules · click to jump straight in</div>
           </div>
           <div className="card-pad">
             <div className="grid-4">
@@ -205,6 +205,8 @@ export default function Dashboard() {
               <div className="feature-tile"><div className="ic">📋</div><h4>Daily Worksheet</h4><p className="desc">Site-recorded activity with geo-tagged photos and quantities.</p><Link to="/progress" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
               <div className="feature-tile"><div className="ic">👷</div><h4>Attendance</h4><p className="desc">Mark labour & staff on site — wages computed from attendance.</p><Link to="/workforce" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
               <div className="feature-tile"><div className="ic">🚜</div><h4>Equipment</h4><p className="desc">Machinery hours, breakdowns, fuel and hire billing — new.</p><Link to="/equipment" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
+              <div className="feature-tile"><div className="ic">🧑‍💼</div><h4>HR & Payroll</h4><p className="desc">Employee records, leave, salary structures and monthly payroll.</p><Link to="/hrms" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
+              <div className="feature-tile"><div className="ic">💵</div><h4>Petty Cash</h4><p className="desc">Track site cash, top-ups, expenses and category spend by project.</p><Link to="/petty-cash" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
               <div className="feature-tile"><div className="ic">🧱</div><h4>Materials</h4><p className="desc">POs, GRNs, consumption, returns — stock register that builds itself.</p><Link to="/materials" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
               <div className="feature-tile"><div className="ic">🎯</div><h4>Tasks & Milestones</h4><p className="desc">Assign work with priority, drawings and target dates.</p><Link to="/milestones" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>
               <div className="feature-tile"><div className="ic">⚠️</div><h4>Issues & Snags</h4><p className="desc">Priority, assignment, photos, discussion thread, over-due alerts.</p><Link to="/issues" className="nav-section" style={{ marginTop: 0, color: 'var(--brand)' }}>Open →</Link></div>

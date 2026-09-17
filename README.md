@@ -132,7 +132,7 @@ Contruction-ERP/
 /api/auth /api/users /api/roles /api/projects /api/wings /api/floors /api/units
 /api/progress /api/milestones /api/drawings /api/materials /api/purchase-orders
 /api/stock /api/billing /api/boq /api/test-reports /api/inspections /api/issues
-/api/workers /api/attendance /api/labour-payments /api/sales /api/documents
+/api/workers /api/attendance /api/labour-payments /api/hrms /api/petty-cash /api/sales /api/documents
 /api/notifications /api/dashboard /api/reports /api/admin /api/files
 ```
 

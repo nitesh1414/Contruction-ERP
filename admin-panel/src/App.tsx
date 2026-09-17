@@ -36,8 +36,8 @@ export default function App() {
       <Route path="/roles" element={<RequireAuth><Layout><Require perm="roles.view"><Roles /></Require></Layout></RequireAuth>} />
       <Route path="/projects" element={<RequireAuth><Layout><Require perm="projects.view"><ProjectsAdmin /></Require></Layout></RequireAuth>} />
       <Route path="/masters" element={<RequireAuth><Layout><Masters /></Layout></RequireAuth>} />
-      <Route path="/hrms" element={<RequireAuth><Layout><ExternalModule slug="hrms" /></Layout></RequireAuth>} />
-      <Route path="/petty-cash" element={<RequireAuth><Layout><ExternalModule slug="petty-cash" /></Layout></RequireAuth>} />
+      <Route path="/hrms" element={<RequireAuth><Layout><Require perm="hrms.view"><ExternalModule slug="hrms" /></Require></Layout></RequireAuth>} />
+      <Route path="/petty-cash" element={<RequireAuth><Layout><Require perm="petty_cash.view"><ExternalModule slug="petty-cash" /></Require></Layout></RequireAuth>} />
       <Route path="/audit-logs" element={<RequireAuth><Layout><Require perm="admin.view"><AuditLogs /></Require></Layout></RequireAuth>} />
       <Route path="/notifications" element={<RequireAuth><Layout><Require perm="notifications.create"><Broadcast /></Require></Layout></RequireAuth>} />
       <Route path="*" element={<Navigate to="/" replace />} />

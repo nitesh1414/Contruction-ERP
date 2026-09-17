@@ -195,8 +195,8 @@ function EquipmentDetail({ id, onClose }: { id: number; onClose: () => void }) {
               No daily log entries yet — add the first one from above.
             </div>
           ) : (
-            <div className="table-wrap">
-              <table className="data">
+            <div className="table-responsive table-wrap">
+              <table className="table table-striped table-hover data">
                 <thead>
                   <tr><th>Date</th><th>Deployed</th><th>Running</th><th>Idle</th><th>Breakdown</th><th>Fuel (L)</th><th>Status</th><th>Remarks</th></tr>
                 </thead>
@@ -222,8 +222,8 @@ function EquipmentDetail({ id, onClose }: { id: number; onClose: () => void }) {
         <div className="card col-12">
           <div className="card-header"><h3>Hire billing</h3></div>
           {billing.length === 0 ? <div className="empty">No hire bills generated yet.</div> : (
-            <div className="table-wrap">
-              <table className="data">
+            <div className="table-responsive table-wrap">
+              <table className="table table-striped table-hover data">
                 <thead>
                   <tr><th>Month</th><th>Hours</th><th>Rate</th><th className="right">Total</th><th>Status</th><th className="right">Paid</th></tr>
                 </thead>

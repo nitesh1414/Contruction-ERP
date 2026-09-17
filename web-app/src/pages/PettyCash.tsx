@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { api, errMsg } from '../api/client';
+import { api, downloadExport, errMsg } from '../api/client';
 import { useFetch } from '../hooks/useFetch';
 import { useDebounce } from '../hooks/useFetch';
 import { useAuth } from '../auth/AuthContext';
@@ -34,8 +33,7 @@ function SummaryCards({ projectId }: { projectId?: number }) {
   const { data, loading } = useFetch<any>(projectId ? `/petty-cash/summary?projectId=${projectId}` : null);
   if (loading) return <div className="spinner-wrap"><div className="spinner" /></div>;
   if (!data) return <div className="card card-pad empty">Choose a project to view petty-cash summary.</div>;
-  const { balance, total_topup, total_expense, byCategory = [], recent = [] } = data;
-  const topCat = byCategory[0];
+  const { balance, total_topup, total_expense, total_replenish, byCategory = [], recent = [] } = data;
   return (
     <div className="grid-3">
       <div className="card">
@@ -44,7 +42,7 @@ function SummaryCards({ projectId }: { projectId?: number }) {
           <div style={{ width: 72, height: 72, borderRadius: 18, background: 'var(--brand-soft)', display: 'grid', placeItems: 'center', fontSize: 32 }}>💵</div>
           <div>
             <div style={{ fontSize: 36, fontWeight: 780, color: 'var(--ink)', letterSpacing: '-0.01em' }}>{fmtMoney(balance)}</div>
-            <div className="muted" style={{ fontSize: 13 }}>Top-ups {fmtMoney(total_topup)} − Expenses {fmtMoney(total_expense)}</div>
+            <div className="muted" style={{ fontSize: 13 }}>In {fmtMoney(Number(total_topup) + Number(total_replenish))} − Expenses {fmtMoney(total_expense)}</div>
           </div>
         </div>
       </div>
@@ -92,6 +90,7 @@ export default function PettyCash() {
   const [search, setSearch] = useState('');
   const [filterValues, setFilterValues] = useState<Record<string, any>>({});
   const [projectId, setProjectId] = useState<string>('');
+  const { data: projects } = useFetch<any>('/projects', { limit: 200 });
   const debounced = useDebounce(search);
   const params = useMemo(() => ({
     page, limit: 20, search: debounced,
@@ -127,6 +126,16 @@ export default function PettyCash() {
     catch (e) { toast.push(errMsg(e), 'error'); }
     finally { setDelBusy(false); }
   };
+  const exportRows = async () => {
+    try {
+      const query = new URLSearchParams();
+      if (projectId) query.set('projectId', projectId);
+      if (debounced) query.set('search', debounced);
+      Object.entries(filterValues).forEach(([key, value]) => { if (value) query.set(key, String(value)); });
+      await downloadExport(`/petty-cash/export?${query.toString()}`, 'petty-cash.csv');
+      toast.push('Petty-cash export downloaded');
+    } catch (e) { toast.push(errMsg(e), 'error'); }
+  };
   const columns: ColumnConfig<any>[] = [
     { key: 'txn_date', label: 'Date', render: (r) => fmtDate(r.txn_date) },
     { key: 'txn_type', label: 'Type', render: (r) => <span className={`badge ${r.txn_type === 'topup' ? 'green' : r.txn_type === 'replenish' ? 'blue' : 'orange'}`}>{r.txn_type}</span> },
@@ -138,8 +147,8 @@ export default function PettyCash() {
     { key: '_a', label: '', align: 'right',
       render: (row) => (
         <div className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
-          {can('billing.edit') && <button className="btn outline sm" onClick={(e) => { e.stopPropagation(); openEdit(row); }}>Edit</button>}
-          {can('billing.delete') && <button className="btn outline sm" style={{ color: 'var(--danger)' }} onClick={(e) => { e.stopPropagation(); setDel(row); }}>Delete</button>}
+          {can('petty_cash.edit') && <button className="btn outline sm" onClick={(e) => { e.stopPropagation(); openEdit(row); }}>Edit</button>}
+          {can('petty_cash.delete') && <button className="btn outline sm" style={{ color: 'var(--danger)' }} onClick={(e) => { e.stopPropagation(); setDel(row); }}>Delete</button>}
         </div>
       ) },
   ];
@@ -150,12 +159,16 @@ export default function PettyCash() {
         <div className="card-header">
           <h3>Site petty cash</h3>
           <div className="actions muted" style={{ fontSize: 12, marginRight: 10 }}>Record top-ups, expenses, and replenishments by site</div>
-          {can('billing.create') && <button className="btn primary sm" onClick={openNew}>+ Add entry</button>}
+          {can('petty_cash.export') && <button className="btn outline sm" onClick={exportRows}>⬇ Export</button>}
+          {can('petty_cash.create') && <button className="btn primary sm" onClick={openNew}>+ Add entry</button>}
         </div>
         <div className="filter-bar">
           <div className="field">
-            <label>Project ID</label>
-            <input className="input" type="number" placeholder="Project ID" value={projectId} onChange={(e) => setProjectId(e.target.value)} />
+            <label>Project</label>
+            <select className="input" value={projectId} onChange={(e) => { setProjectId(e.target.value); setPage(1); }}>
+              <option value="">All projects</option>
+              {(projects?.data || []).map((p: any) => <option key={p.id} value={p.id}>{p.name} · {p.code}</option>)}
+            </select>
           </div>
           <div className="field grow">
             <label>Search</label>
@@ -190,8 +203,11 @@ export default function PettyCash() {
           <div className="form-grid">
             {!projectId && (
               <div className="field" style={{ gridColumn: '1 / -1' }}>
-                <label>Project ID</label>
-                <input className="input" type="number" value={form.project_id || ''} onChange={(e) => setForm({ ...form, project_id: e.target.value })} />
+                <label>Project <span className="req">*</span></label>
+                <select className="input" value={form.project_id || ''} onChange={(e) => setForm({ ...form, project_id: e.target.value ? Number(e.target.value) : '' })}>
+                  <option value="">Choose project…</option>
+                  {(projects?.data || []).map((p: any) => <option key={p.id} value={p.id}>{p.name} · {p.code}</option>)}
+                </select>
               </div>
             )}
             {FIELDS.map((f) => <div style={{ gridColumn: f.width === 'full' ? '1 / -1' : 'auto' }} key={f.key}><Field config={f} value={form[f.key]} onChange={(v) => setForm((s) => ({ ...s, [f.key]: v }))} /></div>)}
