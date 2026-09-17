@@ -25,7 +25,7 @@ Tokens: access token (default 12 h) + rotating refresh token (30 d, revocable �
 | POST | `/auth/login` | `{ email, password, deviceInfo? }` → `{ user, accessToken, refreshToken }`. `user` includes `roles[]`, `permissions[]`, `projects[]` (access map) |
 | POST | `/auth/refresh` | `{ refreshToken }` → new token pair (rotation) |
 | POST | `/auth/logout` 🔒 | `{ refreshToken }` — revoke |
-| GET | `/auth/me` 🔒 | current profile incl. roles/permissions/project access |
+| GET | `/auth/me` 🔒 | current profile incl. roles/permissions/project access and a safe linked HR employee summary |
 | PUT | `/auth/profile` 🔒 | `{ name?, phone?, profile_photo? }` |
 | POST | `/auth/change-password` 🔒 | `{ current_password, new_password }` |
 | POST | `/auth/forgot-password` | `{ email }` → issues reset token (link built from `FRONTEND_BASE_URL`) |
@@ -115,7 +115,7 @@ Status: `pending | in_progress | completed | delayed`.
 ## /hrms *(hrms.* perms)*
 `GET /hrms/summary` (includes `totalEmployees`, `linkedLogins`, active/on-leave counts and payroll totals) · `GET /hrms/login-roles` (active roles safe for employee login assignment) · CRUD `/hrms/employees` (filters `projectId`, `department`, `status`, `search`) · `POST /hrms/employees/:id/login`.
 
-`POST /hrms/employees` accepts the employee fields plus the optional login workflow:
+`POST /hrms/employees` accepts the employee fields plus the optional login workflow. The UI explicitly asks whether credentials are required; when `create_login` is false, an email is not implicitly linked to an unrelated login:
 
 ```json
 {
@@ -131,9 +131,9 @@ Status: `pending | in_progress | completed | delayed`.
 }
 ```
 
-`create_login` requires `users.create`, an email, an eight-character password and at least one active role. The employee and new `users` row, role links and `hrms_employees.user_id` link are committed transactionally. If the email already belongs to an unlinked user, that login is linked rather than duplicated. `POST /hrms/employees/:id/login` accepts `{ password, roleIds }` for adding access to an existing unlinked employee. A login already linked to another employee returns a conflict. The database unique key `uq_hrms_employee_user` also prevents one user from being linked twice.
+`create_login` requires `users.create`, an email, an eight-character password and at least one active role. The employee and new `users` row, role links and `hrms_employees.user_id` link are committed transactionally. If the email already belongs to an unlinked user, that login is linked rather than duplicated. `POST /hrms/employees/:id/login` accepts `{ password, roleIds }` for adding access to an existing unlinked employee. A login already linked to another employee, duplicate email, or duplicate employee code returns a conflict. The database unique key `uq_hrms_employee_user` also prevents one user from being linked twice. Updating either side synchronizes the shared name, email, phone and employee code fields in a transaction; deactivated/terminated employees disable their linked login.
 
-The remaining workflows are CRUD `/hrms/leave-types` · `GET/POST /hrms/leave-requests` · `PUT /hrms/leave-requests/:id/decide` `{status: approved|rejected|cancelled, remarks?}` · `GET/POST/PUT/DELETE /hrms/salary-structures` · `GET /hrms/payroll?payroll_month=YYYY-MM` · `GET /hrms/payroll/:id` · `POST /hrms/payroll/generate` / `generate-bulk` · `PUT /hrms/payroll/:id/payment` `{paid_amount, payment_date?, payment_reference?}`. Payroll is generated from the active salary structure and approved leave; all project-linked records respect project scope.
+The remaining workflows are CRUD `/hrms/leave-types` · `GET/POST /hrms/leave-requests` · `GET /hrms/leave-balances?employeeId&year` · `PUT /hrms/leave-requests/:id/decide` `{status: approved|rejected|cancelled, remarks?}` · `GET/POST/PUT/DELETE /hrms/salary-structures` (PUT updates the requested structure id and prevents duplicate employee/effective-date rows) · `GET /hrms/payroll?payroll_month=YYYY-MM` · `GET /hrms/payroll/:id` · `POST /hrms/payroll/generate` / `generate-bulk` · `PUT /hrms/payroll/:id/payment` `{paid_amount, payment_date?, payment_reference?}`. Leave requests validate dates, overlapping requests and configured quotas. Payroll is generated from the salary structure effective for the selected month and unpaid approved leave; payment status is calculated from the paid amount and cannot be set inconsistently. All project-linked records respect project scope.
 
 ## Quality
 

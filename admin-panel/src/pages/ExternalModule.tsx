@@ -15,13 +15,37 @@ function HrmsAdminView() {
   const { can } = useAuth();
   const { data: summary } = useFetch<any>('/hrms/summary');
   const { data: employees, loading: employeesLoading } = useFetch<any>('/hrms/employees', { limit: 12, is_active: 1 });
-  const { data: leave, loading: leaveLoading } = useFetch<any>('/hrms/leave-requests', { limit: 8 });
+  const { data: leave, loading: leaveLoading, reload: reloadLeave } = useFetch<any>('/hrms/leave-requests', { limit: 8 });
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
-  const { data: payroll, loading: payrollLoading } = useFetch<any>('/hrms/payroll', { limit: 8, payroll_month: month });
+  const { data: payroll, loading: payrollLoading, reload: reloadPayroll } = useFetch<any>('/hrms/payroll', { limit: 8, payroll_month: month });
   const employeeRows = employees?.data || [];
   const leaveRows = leave?.data || [];
   const payrollRows = payroll?.data || [];
   const linkedCount = summary?.linkedLogins ?? employeeRows.filter((employee: any) => employee.user_id).length;
+  const toast = useToast();
+  const [paymentFor, setPaymentFor] = useState<any>(null);
+  const [payment, setPayment] = useState({ paid_amount: '', payment_date: new Date().toISOString().slice(0, 10), payment_reference: '' });
+  const [generating, setGenerating] = useState(false);
+
+  const decideLeave = async (row: any, status: 'approved' | 'rejected') => {
+    try { await api.put(`/hrms/leave-requests/${row.id}/decide`, { status }); toast.push(`Leave ${status}`); reloadLeave(); }
+    catch (error) { toast.push(errMsg(error), 'error'); }
+  };
+  const openPayment = (row: any) => {
+    setPaymentFor(row);
+    setPayment({ paid_amount: row.paid_amount ? String(row.paid_amount) : String(row.net_pay || ''), payment_date: row.payment_date ? String(row.payment_date).slice(0, 10) : new Date().toISOString().slice(0, 10), payment_reference: row.payment_reference || '' });
+  };
+  const savePayment = async () => {
+    if (!paymentFor) return;
+    try { await api.put(`/hrms/payroll/${paymentFor.id}/payment`, { ...payment, paid_amount: Number(payment.paid_amount || 0) }); toast.push('Payroll payment updated'); setPaymentFor(null); reloadPayroll(); }
+    catch (error) { toast.push(errMsg(error), 'error'); }
+  };
+  const generatePayroll = async () => {
+    setGenerating(true);
+    try { const response = await api.post('/hrms/payroll/generate-bulk', { payroll_month: month }); const skipped = response.data?.skipped?.length || 0; toast.push(skipped ? `Payroll generated with ${skipped} skipped record(s)` : `Payroll generated for ${month}`, skipped ? 'info' : 'success'); reloadPayroll(); }
+    catch (error) { toast.push(errMsg(error), 'error'); }
+    finally { setGenerating(false); }
+  };
 
   const employeeColumns: ColumnConfig<any>[] = [
     { key: 'employee_code', label: 'Code' },
@@ -41,6 +65,7 @@ function HrmsAdminView() {
     { key: 'to_date', label: 'To', render: (row) => fmtDate(row.to_date) },
     { key: 'total_days', label: 'Days' },
     { key: 'status', label: 'Status', render: (row) => <Badge value={row.status} /> },
+    { key: '_actions', label: '', align: 'right', render: (row) => row.status === 'pending' && can('hrms.approve') ? <div className="flex gap-sm" style={{ justifyContent: 'flex-end' }}><button className="btn outline sm" onClick={() => decideLeave(row, 'approved')}>Approve</button><button className="btn outline sm" style={{ color: 'var(--danger)' }} onClick={() => decideLeave(row, 'rejected')}>Reject</button></div> : null },
   ];
   const payrollColumns: ColumnConfig<any>[] = [
     { key: 'employee_name', label: 'Employee', render: (row) => <strong>{row.employee_name}</strong> },
@@ -48,13 +73,14 @@ function HrmsAdminView() {
     { key: 'net_pay', label: 'Net', render: (row) => fmtMoney(row.net_pay), align: 'right' },
     { key: 'paid_amount', label: 'Paid', render: (row) => fmtMoney(row.paid_amount), align: 'right' },
     { key: 'payment_status', label: 'Payment', render: (row) => <Badge value={row.payment_status} /> },
+    { key: '_actions', label: '', align: 'right', render: (row) => can('hrms.edit') ? <button className="btn outline sm" onClick={() => openPayment(row)}>Record payment</button> : null },
   ];
 
   return (
     <div>
       <div className="page-intro" style={{ marginBottom: 14 }}>
         <div><h2 style={{ marginBottom: 3 }}>HR & Payroll operations</h2><p className="muted" style={{ margin: 0 }}>Employee identity, login access, leave approvals and payroll status in one admin view.</p></div>
-        <span className="chip blue">{can('hrms.edit') ? 'Operational access' : 'Read-only access'}</span>
+        <div className="actions"><span className="chip blue">{can('hrms.edit') ? 'Operational access' : 'Read-only access'}</span>{can('hrms.create') && <button className="btn primary sm" disabled={generating} onClick={generatePayroll}>{generating ? 'Generating…' : 'Generate payroll'}</button>}</div>
       </div>
       <div className="stat-grid">
         <StatCard icon="👥" label="Active employees" value={summary?.active ?? '—'} color="var(--brand-soft)" />
@@ -77,6 +103,13 @@ function HrmsAdminView() {
           <DataTable columns={payrollColumns} rows={payrollRows} loading={payrollLoading} rowKey="id" />
         </div>
       </div>
+      {paymentFor && <Modal title={`Record payment · ${paymentFor.employee_name}`} onClose={() => setPaymentFor(null)} size="sm"
+        footer={<><button className="btn outline" onClick={() => setPaymentFor(null)}>Cancel</button><button className="btn primary" onClick={savePayment}>Save payment</button></>}>
+        <p className="form-hint" style={{ marginTop: 0 }}>Net payable: <strong>{fmtMoney(paymentFor.net_pay)}</strong>. Payment status is calculated from the amount.</p>
+        <Field config={{ key: 'paid_amount', label: 'Amount paid (₹)', type: 'number', required: true }} value={payment.paid_amount} onChange={(value) => setPayment((state) => ({ ...state, paid_amount: value }))} />
+        <Field config={{ key: 'payment_date', label: 'Payment date', type: 'date' }} value={payment.payment_date} onChange={(value) => setPayment((state) => ({ ...state, payment_date: value }))} />
+        <Field config={{ key: 'payment_reference', label: 'Reference / UTR', type: 'text' }} value={payment.payment_reference} onChange={(value) => setPayment((state) => ({ ...state, payment_reference: value }))} />
+      </Modal>}
     </div>
   );
 }

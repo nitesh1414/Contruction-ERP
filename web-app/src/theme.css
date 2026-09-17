@@ -477,6 +477,9 @@ h1 { font-size: 24px; } h2 { font-size: 19px; } h3 { font-size: 15.5px; } h4 { f
 .stat-card .ic { width: 40px; height: 40px; border-radius: 10px; font-size: 18px; }
 .stat-card .val { font-size: 21px; } .stat-card .lbl { font-size: 12px; } .stat-card .sub { font-size: 11px; }
 .grid-2, .grid-3, .grid-4, .grid-12 { gap: 13px; }
+.compact-kv { display: grid; grid-template-columns: minmax(92px, .8fr) minmax(120px, 1.2fr); gap: 6px 12px; font-size: 12px; }
+.compact-kv > span { color: var(--ink-3); }
+.compact-kv > strong { color: var(--ink); font-weight: 600; }
 
 /* Bootstrap-compatible table classes with restrained zebra striping. */
 .table { --bs-table-bg: transparent; --bs-table-striped-bg: #f7f9fc; --bs-table-hover-bg: #fff1ea; }

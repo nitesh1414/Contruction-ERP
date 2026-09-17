@@ -1251,6 +1251,7 @@ CREATE TABLE IF NOT EXISTS hrms_salary_structures (
   created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_ss_emp (employee_id, effective_from),
+  UNIQUE KEY uq_salary_employee_effective (employee_id, effective_from),
   CONSTRAINT fk_ss_emp FOREIGN KEY (employee_id) REFERENCES hrms_employees(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

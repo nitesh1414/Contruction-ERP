@@ -201,6 +201,23 @@ async function ensureHrmsUserLinkConstraint(conn) {
   await conn.query('ALTER TABLE hrms_employees ADD UNIQUE KEY uq_hrms_employee_user (user_id)');
 }
 
+async function ensureSalaryEffectiveConstraint(conn) {
+  const [indexes] = await conn.query(
+    `SELECT 1 FROM information_schema.statistics
+      WHERE table_schema = DATABASE() AND table_name = 'hrms_salary_structures'
+        AND index_name = 'uq_salary_employee_effective' LIMIT 1`
+  );
+  if (indexes.length) return;
+  const [duplicates] = await conn.query(
+    `SELECT employee_id, effective_from, COUNT(*) AS count FROM hrms_salary_structures
+      GROUP BY employee_id, effective_from HAVING COUNT(*) > 1 LIMIT 1`
+  );
+  if (duplicates.length) {
+    throw new Error(`Cannot add unique salary effective-date constraint for employee ${duplicates[0].employee_id}`);
+  }
+  await conn.query('ALTER TABLE hrms_salary_structures ADD UNIQUE KEY uq_salary_employee_effective (employee_id, effective_from)');
+}
+
 async function syncHrmsDefaults(conn) {
   const leaveTypes = [
     ['Casual Leave', 'CL', 12, 1, '#0d6cc4', 'Short personal leave'],
@@ -219,6 +236,7 @@ async function syncHrmsDefaults(conn) {
 
 async function syncPermissions(conn) {
   await ensureHrmsUserLinkConstraint(conn);
+  await ensureSalaryEffectiveConstraint(conn);
   await syncHrmsDefaults(conn);
   for (const [module, actions] of Object.entries(MODULE_ACTIONS)) {
     for (const action of actions) {
@@ -268,6 +286,7 @@ async function main() {
   }
 
   await ensureHrmsUserLinkConstraint(conn);
+  await ensureSalaryEffectiveConstraint(conn);
   await syncHrmsDefaults(conn);
   const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
   const demoHash = await bcrypt.hash(DEMO_PASSWORD, 10);

@@ -26,6 +26,9 @@ function EmployeesTab() {
   const [form, setForm] = useState<Record<string, any>>({});
   const [login, setLogin] = useState<{ enabled: boolean; password: string; roleIds: number[] }>({ enabled: false, password: '', roleIds: [] });
   const [saving, setSaving] = useState(false);
+  const [detail, setDetail] = useState<any>(null);
+  const [deleting, setDeleting] = useState<any>(null);
+  const { data: wings } = useFetch<any>('/wings', form.project_id ? { projectId: form.project_id } : undefined);
 
   const EMPLOYEE_FIELDS: FieldConfig[] = [
     { key: 'employee_code', label: 'Employee code' },
@@ -42,6 +45,11 @@ function EmployeesTab() {
     { key: 'status', label: 'Status', type: 'select', options: [
       { value: 'active', label: 'Active' }, { value: 'on_leave', label: 'On leave' }, { value: 'resigned', label: 'Resigned' }, { value: 'terminated', label: 'Terminated' } ] },
     { key: 'project_id', label: 'Project', type: 'select', options: (projects?.data || []).map((p: any) => ({ value: p.id, label: `${p.name} · ${p.code}` })) },
+    { key: 'wing_id', label: 'Wing', type: 'select', options: (wings?.data || []).map((w: any) => ({ value: w.id, label: `${w.name} · ${w.code}` })) },
+    { key: 'bank_account', label: 'Bank account' },
+    { key: 'pan_number', label: 'PAN' },
+    { key: 'aadhaar_number', label: 'Aadhaar' },
+    { key: 'address', label: 'Address', width: 'full' },
     { key: 'is_active', label: 'Active', type: 'checkbox' },
     { key: 'remarks', label: 'Remarks', type: 'textarea', width: 'full' },
   ];
@@ -52,9 +60,26 @@ function EmployeesTab() {
     setEdit('new');
   };
   const openEdit = (row: any) => {
-    setForm({ ...row });
+    setForm({ ...row, date_of_joining: fmtDate(row.date_of_joining) === '—' ? '' : fmtDate(row.date_of_joining), date_of_birth: fmtDate(row.date_of_birth) === '—' ? '' : fmtDate(row.date_of_birth) });
     setLogin({ enabled: false, password: '', roleIds: [] });
     setEdit(row);
+  };
+  const openDetails = async (row: any) => {
+    try {
+      const response = await api.get(`/hrms/employees/${row.id}`);
+      setDetail(response.data.data);
+    } catch (error) { toast.push(errMsg(error), 'error'); }
+  };
+  const removeEmployee = async () => {
+    if (!deleting) return;
+    setSaving(true);
+    try {
+      await api.delete(`/hrms/employees/${deleting.id}`);
+      toast.push('Employee deleted');
+      setDeleting(null);
+      reload();
+    } catch (error) { toast.push(errMsg(error), 'error'); }
+    finally { setSaving(false); }
   };
   const save = async () => {
     if (login.enabled) {
@@ -105,7 +130,9 @@ function EmployeesTab() {
     { key: '_a', label: '', align: 'right',
       render: (row) => (
         <div className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
+          <button className="btn outline sm" onClick={(e) => { e.stopPropagation(); openDetails(row); }}>Details</button>
           {can('hrms.edit') && <button className="btn outline sm" onClick={(e) => { e.stopPropagation(); openEdit(row); }}>Edit</button>}
+          {can('hrms.delete') && <button className="btn outline sm" style={{ color: 'var(--danger)' }} onClick={(e) => { e.stopPropagation(); setDeleting(row); }}>Delete</button>}
         </div>
       ) },
   ];
@@ -125,7 +152,7 @@ function EmployeesTab() {
           <label>Status</label>
           <select className="input" value={filters.status || ''} onChange={(e) => { setFilters((s) => ({ ...s, status: e.target.value })); setPage(1); }}>
             <option value="">All</option>
-            <option value="active">Active</option><option value="on_leave">On leave</option><option value="resigned">Resigned</option>
+            <option value="active">Active</option><option value="on_leave">On leave</option><option value="resigned">Resigned</option><option value="terminated">Terminated</option>
           </select>
         </div>
       </div>
@@ -134,15 +161,17 @@ function EmployeesTab() {
           <h3>Employees</h3>
           {can('hrms.create') && <button className="btn primary sm" style={{ marginLeft: 'auto' }} onClick={openNew}>+ Add employee</button>}
         </div>
-        <DataTable columns={cols} rows={rows} loading={loading} rowKey="id" />
+        <DataTable columns={cols} rows={rows} loading={loading} rowKey="id" onRowClick={openDetails} />
         <PaginationBar page={page} total={total} limit={20} onPage={setPage} />
       </div>
+      {detail && <EmployeeDetailsModal employee={detail} onClose={() => setDetail(null)} canEdit={can('hrms.edit')} onEdit={() => { setDetail(null); openEdit(detail); }} />}
+      {deleting && <ConfirmDialog message={`Delete employee "${deleting.name}"? Linked login accounts are retained but unlinked.`} onCancel={() => setDeleting(null)} onConfirm={removeEmployee} busy={saving} />}
       {edit !== null && (
         <Modal title={edit === 'new' ? 'Add employee' : `Edit · ${edit.name}`} onClose={() => setEdit(null)} size="lg"
           footer={<><button className="btn outline" onClick={() => setEdit(null)} disabled={saving}>Cancel</button>
                   <button className="btn primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button></>}>
           <div className="form-grid">
-            {EMPLOYEE_FIELDS.map((f) => <div style={{ gridColumn: f.width === 'full' ? '1 / -1' : 'auto' }} key={f.key}><Field config={f} value={form[f.key]} onChange={(v) => setForm((s) => ({ ...s, [f.key]: v }))} /></div>)}
+            {EMPLOYEE_FIELDS.map((f) => <div style={{ gridColumn: f.width === 'full' ? '1 / -1' : 'auto' }} key={f.key}><Field config={f} value={form[f.key]} onChange={(v) => setForm((s) => ({ ...s, [f.key]: v, ...(f.key === 'project_id' ? { wing_id: null } : {}) }))} /></div>)}
           </div>
           <div className="card" style={{ marginTop: 16, padding: 14, background: 'var(--bg-tint)' }}>
             <div className="flex" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -185,17 +214,85 @@ function EmployeesTab() {
   );
 }
 
+function EmployeeDetailsModal({ employee, onClose, canEdit, onEdit }: { employee: any; onClose: () => void; canEdit: boolean; onEdit: () => void }) {
+  const { data: balances } = useFetch<any>('/hrms/leave-balances', { employeeId: employee.id, year: new Date().getFullYear() });
+  const leaveColumns: ColumnConfig<any>[] = [
+    { key: 'leave_type_name', label: 'Leave' },
+    { key: 'from_date', label: 'From', render: (row) => fmtDate(row.from_date) },
+    { key: 'to_date', label: 'To', render: (row) => fmtDate(row.to_date) },
+    { key: 'total_days', label: 'Days' },
+    { key: 'status', label: 'Status', render: (row) => <span className={`badge ${row.status === 'approved' ? 'green' : row.status === 'rejected' ? 'red' : 'orange'}`}>{row.status}</span> },
+  ];
+  const payrollColumns: ColumnConfig<any>[] = [
+    { key: 'payroll_month', label: 'Month' },
+    { key: 'gross_pay', label: 'Gross', render: (row) => fmtMoney(row.gross_pay), align: 'right' },
+    { key: 'net_pay', label: 'Net', render: (row) => fmtMoney(row.net_pay), align: 'right' },
+    { key: 'payment_status', label: 'Payment', render: (row) => <span className={`badge ${row.payment_status === 'paid' ? 'green' : row.payment_status === 'partial' ? 'orange' : 'red'}`}>{row.payment_status}</span> },
+  ];
+  return (
+    <Modal title={`Employee details · ${employee.name}`} onClose={onClose} size="xl"
+      footer={<><button className="btn outline" onClick={onClose}>Close</button>{canEdit && <button className="btn primary" onClick={onEdit}>Edit employee</button>}</>}>
+      <div className="grid-2">
+        <div className="card card-pad">
+          <h3 style={{ marginTop: 0 }}>Profile</h3>
+          <div className="compact-kv">
+            <span>Employee code</span><strong>{employee.employee_code}</strong>
+            <span>Email</span><strong>{employee.email || '—'}</strong>
+            <span>Phone</span><strong>{employee.phone || '—'}</strong>
+            <span>Department</span><strong>{employee.department || '—'}</strong>
+            <span>Designation</span><strong>{employee.designation || '—'}</strong>
+            <span>Employment</span><strong>{employee.employment_type || '—'}</strong>
+            <span>Joined</span><strong>{fmtDate(employee.date_of_joining)}</strong>
+            <span>Project</span><strong>{employee.project_name || '—'}{employee.wing_name ? ` · ${employee.wing_name}` : ''}</strong>
+            <span>Status</span><span><span className={`badge ${employee.status === 'active' ? 'green' : employee.status === 'on_leave' ? 'orange' : 'red'}`}>{employee.status}</span></span>
+          </div>
+          <div className="form-hint" style={{ marginTop: 12 }}>{employee.address || 'No address on file'}</div>
+        </div>
+        <div className="card card-pad">
+          <h3 style={{ marginTop: 0 }}>Login access</h3>
+          {employee.user_id ? <div className="compact-kv"><span>Account</span><strong>{employee.user_name || employee.user_email}</strong><span>Email</span><strong>{employee.user_email || employee.email}</strong><span>Status</span><strong>{employee.user_status || 'active'}</strong></div> : <p className="muted">No login credentials are linked. Use Edit employee to provision access.</p>}
+          {employee.bank_account && <p className="form-hint" style={{ marginBottom: 0 }}>Bank account on file: •••• {String(employee.bank_account).slice(-4)}</p>}
+        </div>
+      </div>
+      <h3 style={{ margin: '14px 0 6px' }}>Leave balance · {new Date().getFullYear()}</h3>
+      <DataTable columns={[
+        { key: 'name', label: 'Leave type' },
+        { key: 'annual_quota', label: 'Quota' },
+        { key: 'used_days', label: 'Used' },
+        { key: 'pending_days', label: 'Pending' },
+        { key: 'remaining_days', label: 'Remaining', render: (row: any) => row.remaining_days == null ? '—' : <strong>{row.remaining_days}</strong> },
+      ] as ColumnConfig<any>[]} rows={balances || []} rowKey="id" emptyMessage="No active leave types." />
+      <h3 style={{ margin: '14px 0 6px' }}>Salary history</h3>
+      <DataTable columns={[
+        { key: 'effective_from', label: 'Effective', render: (row: any) => fmtDate(row.effective_from) },
+        { key: 'basic', label: 'Basic', render: (row: any) => fmtMoney(row.basic), align: 'right' },
+        { key: 'hra', label: 'HRA', render: (row: any) => fmtMoney(row.hra), align: 'right' },
+        { key: 'pf_employee', label: 'PF', render: (row: any) => fmtMoney(row.pf_employee), align: 'right' },
+      ] as ColumnConfig<any>[]} rows={employee.structures || []} rowKey="id" emptyMessage="No salary structure has been defined." />
+      <div className="grid-2" style={{ marginTop: 14 }}>
+        <div><h3 style={{ marginBottom: 6 }}>Recent leave</h3><DataTable columns={leaveColumns} rows={employee.recentLeave || []} rowKey="id" emptyMessage="No leave requests." /></div>
+        <div><h3 style={{ marginBottom: 6 }}>Recent payroll</h3><DataTable columns={payrollColumns} rows={employee.recentPayroll || []} rowKey="id" emptyMessage="No payroll generated." /></div>
+      </div>
+    </Modal>
+  );
+}
+
 /* Leave requests tab */
 function LeaveTab() {
   const toast = useToast();
   const { can } = useAuth();
   const { data: types } = useFetch<any>('/hrms/leave-types');
-  const { data: employees } = useFetch<any>('/hrms/employees', { limit: 500, is_active: 1 });
-  const { data, loading, reload } = useFetch<any>('/hrms/leave-requests');
+  const { data: employees } = useFetch<any>('/hrms/employees', { limit: 200, is_active: 1 });
+  const [statusFilter, setStatusFilter] = useState('');
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search);
+  const { data, loading, reload } = useFetch<any>('/hrms/leave-requests', { status: statusFilter || undefined, search: debouncedSearch || undefined, limit: 50 });
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState({ employee_id: '', leave_type_id: '', from_date: '', to_date: '', reason: '' });
   const create = async () => {
-    try { await api.post('/hrms/leave-requests', { ...form, employee_id: Number(form.employee_id), leave_type_id: Number(form.leave_type_id) }); toast.push('Leave request submitted'); setCreateOpen(false); reload(); }
+    if (!form.employee_id || !form.leave_type_id || !form.from_date || !form.to_date) { toast.push('Employee, leave type and dates are required', 'error'); return; }
+    if (form.to_date < form.from_date) { toast.push('To date must be on or after from date', 'error'); return; }
+    try { await api.post('/hrms/leave-requests', { ...form, employee_id: Number(form.employee_id), leave_type_id: Number(form.leave_type_id) }); toast.push('Leave request submitted'); setCreateOpen(false); setForm({ employee_id: '', leave_type_id: '', from_date: '', to_date: '', reason: '' }); reload(); }
     catch (e) { toast.push(errMsg(e), 'error'); }
   };
   const decide = async (id: number, status: 'approved' | 'rejected') => {
@@ -223,10 +320,14 @@ function LeaveTab() {
   ];
   return (
     <>
+      <div className="filter-bar">
+        <div className="field grow"><label>Search</label><input className="input" placeholder="Employee or code…" value={search} onChange={(event) => setSearch(event.target.value)} /></div>
+        <div className="field"><label>Status</label><select className="input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">All</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="cancelled">Cancelled</option></select></div>
+      </div>
       <div className="card">
         <div className="card-header">
           <h3>Leave requests</h3>
-          {can('hrms.create') && <button className="btn primary sm" onClick={() => setCreateOpen(true)} style={{ marginLeft: 'auto' }}>+ Request leave</button>}
+          {can('hrms.create') && <button className="btn primary sm" onClick={() => { setForm({ employee_id: '', leave_type_id: '', from_date: '', to_date: '', reason: '' }); setCreateOpen(true); }} style={{ marginLeft: 'auto' }}>+ Request leave</button>}
         </div>
         <DataTable columns={cols} rows={rows} loading={loading} rowKey="id" />
       </div>
@@ -303,7 +404,7 @@ function SalaryTab() {
     { key: 'gross', label: 'Gross', render: (r) => fmtMoney(r.basic + r.hra + r.da + r.special_allowance + r.other_allowance), align: 'right' },
     { key: 'pf_employee', label: 'PF (ee)', render: (r) => fmtMoney(r.pf_employee), align: 'right' },
     { key: '_a', label: '', align: 'right', render: (r) => <div className="flex gap-sm" style={{ justifyContent: 'flex-end' }}>
-      {can('hrms.edit') && <button className="btn outline sm" onClick={() => { setForm({ ...r }); setEdit(r); }}>Edit</button>}
+      {can('hrms.edit') && <button className="btn outline sm" onClick={() => { setForm({ ...r, effective_from: fmtDate(r.effective_from) }); setEdit(r); }}>Edit</button>}
       {can('hrms.delete') && <button className="btn outline sm" style={{ color: 'var(--danger)' }} onClick={() => setDeleting(r)}>Delete</button>}
     </div> },
   ];
@@ -352,8 +453,12 @@ function PayrollTab() {
   };
   const runBulk = async () => {
     setBusy(true);
-    try { await api.post('/hrms/payroll/generate-bulk', { payroll_month: month }); toast.push(`Generated payroll for ${month}`); reload(); }
-    catch (e) { toast.push(errMsg(e), 'error'); }
+    try {
+      const response = await api.post('/hrms/payroll/generate-bulk', { payroll_month: month });
+      const skipped = response.data?.skipped?.length || 0;
+      toast.push(skipped ? `Generated payroll; ${skipped} employee(s) need attention` : `Generated payroll for ${month}`, skipped ? 'info' : 'success');
+      reload();
+    } catch (e) { toast.push(errMsg(e), 'error'); }
     finally { setBusy(false); }
   };
   const rows = data?.data || [];
@@ -376,7 +481,7 @@ function PayrollTab() {
       <div className="card-header">
         <h3>Payroll · {month}</h3>
         <div className="actions">
-          <input className="input" type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ width: 180 }} />
+          <input className="input" type="month" value={month} onChange={(e) => { setMonth(e.target.value); setPage(1); }} style={{ width: 180 }} />
           {can('hrms.create') && <button className="btn primary sm" disabled={busy} onClick={runBulk}>{busy ? 'Generating…' : 'Generate monthly payroll'}</button>}
         </div>
       </div>

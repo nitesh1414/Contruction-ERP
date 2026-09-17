@@ -12,6 +12,11 @@ export interface UserProfile {
   permissions: string[];
   isSuperAdmin: boolean;
   projectAccess: { project_id: number; wing_id: number; project_name: string; wing_name?: string | null }[];
+  employee?: {
+    id: number; employee_code: string; department?: string | null; designation?: string | null;
+    date_of_joining?: string | null; employment_type?: string | null; status?: string | null;
+    project_name?: string | null; wing_name?: string | null;
+  } | null;
 }
 
 export interface Paginated<T> {

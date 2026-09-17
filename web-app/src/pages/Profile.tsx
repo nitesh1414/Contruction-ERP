@@ -50,6 +50,21 @@ export default function Profile() {
         <Field config={{ key: 'phone', label: 'Phone', type: 'text' }} value={form.phone} onChange={(v) => setForm((s) => ({ ...s, phone: v }))} />
         <button className="btn primary sm" onClick={saveProfile} disabled={busy}>Save profile</button>
 
+        {user.employee && (
+          <div className="card" style={{ marginTop: 16, padding: 14, background: 'var(--bg-tint)' }}>
+            <h3 style={{ marginTop: 0 }}>HR & Payroll profile</h3>
+            <div className="form-hint" style={{ marginBottom: 8 }}>Your login and employee record are synchronized.</div>
+            <div className="compact-kv">
+              <span>Employee code</span><strong>{user.employee.employee_code}</strong>
+              <span>Department</span><strong>{user.employee.department || '—'}</strong>
+              <span>Designation</span><strong>{user.employee.designation || '—'}</strong>
+              <span>Employment</span><strong>{user.employee.employment_type || '—'}</strong>
+              <span>Project</span><strong>{user.employee.project_name || '—'}</strong>
+              <span>Status</span><Badge value={user.employee.status || 'active'} />
+            </div>
+          </div>
+        )}
+
         {!!user.projectAccess?.length && (
           <div style={{ marginTop: 16 }}>
             <h3>Project Access</h3>

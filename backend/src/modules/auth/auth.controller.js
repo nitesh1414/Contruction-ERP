@@ -50,12 +50,22 @@ async function loadUserWithRoles(userId) {
       WHERE up.user_id = ?`,
     [userId]
   );
+  const employee = await queryOne(
+    `SELECT e.id, e.employee_code, e.department, e.designation, e.date_of_joining,
+            e.employment_type, e.status, e.is_active, e.project_id, e.wing_id,
+            p.name AS project_name, w.name AS wing_name
+       FROM hrms_employees e
+       LEFT JOIN projects p ON p.id = e.project_id
+       LEFT JOIN wings w ON w.id = e.wing_id
+      WHERE e.user_id = ?`, [userId]
+  );
   return {
     ...user,
     roles,
     permissions: permissions.map((p) => p.code),
     isSuperAdmin: roles.some((r) => r.code === 'super_admin'),
     projectAccess: projects,
+    employee,
   };
 }
 
@@ -123,9 +133,29 @@ export const me = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone, profile_photo } = req.body;
-  await query('UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone), profile_photo = COALESCE(?, profile_photo) WHERE id = ?',
-    [name ?? null, phone ?? null, profile_photo ?? null, req.user.id]);
+  const name = req.body.name === undefined ? undefined : String(req.body.name || '').trim();
+  const phone = req.body.phone === undefined ? undefined : req.body.phone;
+  const profilePhoto = req.body.profile_photo === undefined ? undefined : req.body.profile_photo;
+  if (name !== undefined && !name) throw badRequest('name cannot be empty');
+  await withTransaction(async (conn) => {
+    const [users] = await conn.query('SELECT id FROM users WHERE id = ? FOR UPDATE', [req.user.id]);
+    if (!users[0]) throw notFound('User not found');
+    const fields = [];
+    const values = [];
+    if (name !== undefined) { fields.push('name = ?'); values.push(name); }
+    if (phone !== undefined) { fields.push('phone = ?'); values.push(phone === '' ? null : phone); }
+    if (profilePhoto !== undefined) { fields.push('profile_photo = ?'); values.push(profilePhoto === '' ? null : profilePhoto); }
+    if (fields.length) {
+      await conn.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, [...values, req.user.id]);
+    }
+    if (name !== undefined || phone !== undefined) {
+      const shared = [];
+      const sharedValues = [];
+      if (name !== undefined) { shared.push('name = ?'); sharedValues.push(name); }
+      if (phone !== undefined) { shared.push('phone = ?'); sharedValues.push(phone === '' ? null : phone); }
+      if (shared.length) await conn.query(`UPDATE hrms_employees SET ${shared.join(', ')} WHERE user_id = ?`, [...sharedValues, req.user.id]);
+    }
+  });
   await audit(req, { action: 'update', module: 'users', recordId: req.user.id, newValue: { name, phone } });
   const profile = await loadUserWithRoles(req.user.id);
   res.json({ success: true, data: profile });

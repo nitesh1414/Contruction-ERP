@@ -25,6 +25,7 @@ router.delete('/leave-types/:id', requirePermission('hrms', 'delete'), ctrl.leav
 
 // leave requests
 router.get('/leave-requests',  requirePermission('hrms', 'view'),    ctrl.listLeaveRequests);
+router.get('/leave-balances',  requirePermission('hrms', 'view'),    ctrl.leaveBalances);
 router.post('/leave-requests', requirePermission('hrms', 'create'),  ctrl.createLeaveRequest);
 router.put('/leave-requests/:id/decide', requirePermission('hrms', 'approve'), ctrl.decideLeave);
 

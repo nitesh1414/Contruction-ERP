@@ -79,6 +79,24 @@ export const getOne = asyncHandler(async (req, res) => {
 
 const truthy = (value) => value === true || value === 1 || value === '1' || value === 'true';
 const PROTECTED_ROLE_CODES = new Set(['super_admin', 'admin']);
+const HR_EMPLOYMENT_TYPES = new Set(['permanent', 'contract', 'probation', 'intern']);
+const HR_STATUSES = new Set(['active', 'on_leave', 'resigned', 'terminated']);
+const HR_GENDERS = new Set(['male', 'female', 'other']);
+
+function normalizeEmail(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  return String(value).trim().toLowerCase();
+}
+
+function normalizeCode(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return null;
+  return String(value).trim();
+}
+
+function duplicateConflict(error, message) {
+  if (error?.code === 'ER_DUP_ENTRY') throw conflict(message);
+  throw error;
+}
 
 async function validateRoleIds(req, roleIds, { required = true } = {}) {
   const ids = [...new Set((Array.isArray(roleIds) ? roleIds : []).map((id) => Number(id)).filter(Number.isInteger))];
@@ -93,16 +111,18 @@ async function validateRoleIds(req, roleIds, { required = true } = {}) {
   return ids;
 }
 
-const HR_EMPLOYMENT_TYPES = new Set(['permanent', 'contract', 'probation', 'intern']);
-const HR_STATUSES = new Set(['active', 'on_leave', 'resigned', 'terminated']);
-const HR_GENDERS = new Set(['male', 'female', 'other']);
-
 function buildEmployeeFromUser(body, generatedCode) {
   const input = body.employee && typeof body.employee === 'object' ? body.employee : {};
-  const employee = {
-    employee_code: nullify(input.employee_code || body.employee_code) || generatedCode,
-    name: input.name || body.name,
-    email: nullify(input.email !== undefined ? input.email : body.email),
+  const employmentType = input.employment_type || 'permanent';
+  const status = input.status || 'active';
+  const gender = input.gender || null;
+  if (!HR_EMPLOYMENT_TYPES.has(employmentType)) throw badRequest('Invalid employee employment type');
+  if (!HR_STATUSES.has(status)) throw badRequest('Invalid employee status');
+  if (gender && !HR_GENDERS.has(gender)) throw badRequest('Invalid employee gender');
+  return {
+    employee_code: normalizeCode(input.employee_code || body.employee_code) || generatedCode,
+    name: String(input.name || body.name || '').trim(),
+    email: normalizeEmail(input.email !== undefined ? input.email : body.email),
     phone: nullify(input.phone !== undefined ? input.phone : body.phone),
     date_of_birth: nullify(input.date_of_birth),
     date_of_joining: nullify(input.date_of_joining),
@@ -110,9 +130,9 @@ function buildEmployeeFromUser(body, generatedCode) {
     designation: nullify(input.designation),
     project_id: nullify(input.project_id),
     wing_id: nullify(input.wing_id),
-    employment_type: HR_EMPLOYMENT_TYPES.has(input.employment_type) ? input.employment_type : 'permanent',
-    status: HR_STATUSES.has(input.status) ? input.status : 'active',
-    gender: HR_GENDERS.has(input.gender) ? input.gender : null,
+    employment_type: employmentType,
+    status,
+    gender,
     bank_account: nullify(input.bank_account),
     pan_number: nullify(input.pan_number),
     aadhaar_number: nullify(input.aadhaar_number),
@@ -120,33 +140,61 @@ function buildEmployeeFromUser(body, generatedCode) {
     remarks: nullify(input.remarks),
     is_active: input.is_active === undefined ? 1 : (truthy(input.is_active) ? 1 : 0),
   };
-  return employee;
+}
+
+async function findEmployeeConflict(conn, employee) {
+  const clauses = [];
+  const params = [];
+  if (employee.employee_code) { clauses.push('employee_code = ?'); params.push(employee.employee_code); }
+  if (employee.email) { clauses.push('email = ?'); params.push(employee.email); }
+  if (!clauses.length) return null;
+  const [rows] = await conn.query(
+    `SELECT id, user_id, employee_code, email FROM hrms_employees WHERE ${clauses.join(' OR ')} FOR UPDATE`, params
+  );
+  const ids = [...new Set(rows.map((row) => Number(row.id)))];
+  if (ids.length > 1) throw conflict('Employee code and email belong to different employee records');
+  return rows[0] || null;
+}
+
+async function assertUniqueUserFields(conn, { email, employeeCode, ignoreId = null }) {
+  if (email) {
+    const [rows] = await conn.query('SELECT id FROM users WHERE email = ? AND id <> COALESCE(?, 0) LIMIT 1 FOR UPDATE', [email, ignoreId]);
+    if (rows[0]) throw conflict('A user with this email already exists');
+  }
+  if (employeeCode) {
+    const [rows] = await conn.query('SELECT id FROM users WHERE employee_code = ? AND id <> COALESCE(?, 0) LIMIT 1 FOR UPDATE', [employeeCode, ignoreId]);
+    if (rows[0]) throw conflict('A user with this employee code already exists');
+  }
 }
 
 export const create = asyncHandler(async (req, res) => {
   const {
-    employee_code, name, email, phone, password, status, roleIds = [], projectAccess = [],
+    employee_code, name, email: rawEmail, phone, password, status, roleIds = [], projectAccess = [],
     createEmployee = false,
   } = req.body;
-  if (!name || !email) throw badRequest('name and email are required');
+  const email = normalizeEmail(rawEmail);
+  const userName = String(name || '').trim();
+  if (!userName || !email) throw badRequest('name and email are required');
   if (!password || String(password).length < 8) throw badRequest('password must be at least 8 characters');
-  const existing = await queryOne('SELECT id FROM users WHERE email = ?', [email]);
-  if (existing) throw conflict('A user with this email already exists');
   const normalizedRoleIds = await validateRoleIds(req, roleIds);
 
   const wantsEmployee = truthy(createEmployee);
   if (wantsEmployee && !req.user.isSuperAdmin && !req.user.permissions.has('hrms.create')) {
     throw forbidden('HRMS → Create permission is required to create the linked employee record');
   }
-  const generatedCode = nullify(employee_code) || `EMP-${Date.now().toString(36).toUpperCase()}`;
-  const employee = wantsEmployee ? buildEmployeeFromUser(req.body, generatedCode) : null;
+  const generatedCode = normalizeCode(employee_code) || `EMP-${Date.now().toString(36).toUpperCase()}`;
+  const employee = wantsEmployee ? buildEmployeeFromUser({ ...req.body, email }, generatedCode) : null;
+  if (employee && !employee.name) throw badRequest('employee name is required');
+  if ((employee?.employee_code || normalizeCode(employee_code))?.length > 30) throw badRequest('employee_code must be at most 30 characters for a user login');
+  if (employee?.email === null) employee.email = email;
   if (employee?.project_id) assertProjectAccess(req, Number(employee.project_id), employee.wing_id ? Number(employee.wing_id) : null);
-  const effectiveProjectAccess = [...projectAccess];
+  const accessEntries = Array.isArray(projectAccess) ? projectAccess : [];
+  const effectiveProjectAccess = accessEntries.filter((entry) => entry && entry.project_id);
   if (employee?.project_id && !effectiveProjectAccess.some((entry) => Number(entry.project_id) === Number(employee.project_id))) {
     effectiveProjectAccess.push({ project_id: employee.project_id, wing_id: employee.wing_id || 0 });
   }
   for (const pa of effectiveProjectAccess) {
-    if (pa.project_id) assertProjectAccess(req, Number(pa.project_id), pa.wing_id ? Number(pa.wing_id) : null);
+    assertProjectAccess(req, Number(pa.project_id), pa.wing_id ? Number(pa.wing_id) : null);
   }
   if (!req.user.isSuperAdmin && req.projectScope !== null && req.projectScope !== undefined
     && !effectiveProjectAccess.some((entry) => entry.project_id)) {
@@ -154,58 +202,58 @@ export const create = asyncHandler(async (req, res) => {
   }
 
   const hash = await bcrypt.hash(String(password), 10);
-  const result = await withTransaction(async (conn) => {
-    const [r] = await conn.query(
-      'INSERT INTO users (employee_code, name, email, phone, password_hash, status) VALUES (?,?,?,?,?,?)',
-      [nullify(employee_code), name, email, nullify(phone), hash, status === 'inactive' ? 'inactive' : 'active']
-    );
-    const userId = r.insertId;
-    for (const roleId of normalizedRoleIds) {
-      await conn.query('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?,?)', [userId, roleId]);
-    }
-    for (const pa of effectiveProjectAccess) {
-      if (!pa.project_id) continue;
-      await conn.query('INSERT IGNORE INTO user_projects (user_id, project_id, wing_id) VALUES (?,?,?)', [userId, pa.project_id, pa.wing_id || 0]);
-    }
-
-    let employeeId = null;
-    let employeeCreated = false;
-    if (employee) {
-      // A matching unlinked HR record is linked rather than duplicated. This also
-      // repairs a user-first workflow that was completed in two separate steps.
-      const [matches] = await conn.query(
-        `SELECT id, user_id FROM hrms_employees
-          WHERE employee_code = ? OR (email IS NOT NULL AND email = ?)
-          LIMIT 1 FOR UPDATE`, [employee.employee_code, employee.email]
-      );
-      if (matches[0]?.user_id && Number(matches[0].user_id) !== Number(userId)) {
+  let result;
+  try {
+    result = await withTransaction(async (conn) => {
+      await assertUniqueUserFields(conn, { email, employeeCode: employee?.employee_code || normalizeCode(employee_code) });
+      const employeeMatch = employee ? await findEmployeeConflict(conn, employee) : null;
+      if (employeeMatch?.user_id) {
         throw conflict('An employee with this code or email is already linked to another user');
       }
-      if (matches[0]) {
-        employeeId = matches[0].id;
-        await conn.query(
-          `UPDATE hrms_employees SET user_id = ?, name = ?, email = ?, phone = ?,
-             department = COALESCE(?, department), designation = COALESCE(?, designation),
-             project_id = COALESCE(?, project_id), wing_id = COALESCE(?, wing_id), status = ?
-           WHERE id = ?`,
-          [userId, employee.name, employee.email, employee.phone, employee.department, employee.designation,
-            employee.project_id, employee.wing_id, employee.status, employeeId]
-        );
-      } else {
-        const keys = Object.keys(employee);
-        const [employeeResult] = await conn.query(
-          `INSERT INTO hrms_employees (${keys.join(',')}, user_id)
-           VALUES (${keys.map(() => '?').join(',')}, ?)`, [...keys.map((key) => employee[key]), userId]
-        );
-        employeeId = employeeResult.insertId;
-        employeeCreated = true;
+      const userEmployeeCode = employee?.employee_code || normalizeCode(employee_code);
+      const [r] = await conn.query(
+        'INSERT INTO users (employee_code, name, email, phone, password_hash, status) VALUES (?,?,?,?,?,?)',
+        [userEmployeeCode, userName, email, nullify(phone), hash, status === 'inactive' ? 'inactive' : 'active']
+      );
+      const userId = r.insertId;
+      for (const roleId of normalizedRoleIds) {
+        await conn.query('INSERT INTO user_roles (user_id, role_id) VALUES (?,?)', [userId, roleId]);
       }
-    }
-    return { userId, employeeId, employeeCreated };
-  });
+      for (const pa of effectiveProjectAccess) {
+        await conn.query('INSERT IGNORE INTO user_projects (user_id, project_id, wing_id) VALUES (?,?,?)', [userId, pa.project_id, pa.wing_id || 0]);
+      }
+
+      let employeeId = null;
+      let employeeCreated = false;
+      if (employee) {
+        employeeId = employeeMatch?.id || null;
+        if (employeeMatch) {
+          await conn.query(
+            `UPDATE hrms_employees SET user_id = ?, employee_code = ?, name = ?, email = ?, phone = ?,
+               department = COALESCE(?, department), designation = COALESCE(?, designation),
+               project_id = COALESCE(?, project_id), wing_id = COALESCE(?, wing_id)
+             WHERE id = ?`,
+            [userId, employee.employee_code, employee.name, employee.email, employee.phone, employee.department,
+              employee.designation, employee.project_id, employee.wing_id, employeeId]
+          );
+        } else {
+          const keys = Object.keys(employee);
+          const [employeeResult] = await conn.query(
+            `INSERT INTO hrms_employees (${keys.join(',')}, user_id)
+             VALUES (${keys.map(() => '?').join(',')}, ?)`, [...keys.map((key) => employee[key]), userId]
+          );
+          employeeId = employeeResult.insertId;
+          employeeCreated = true;
+        }
+      }
+      return { userId, employeeId, employeeCreated };
+    });
+  } catch (error) {
+    duplicateConflict(error, 'The email, employee code, or employee link is already in use');
+  }
   await audit(req, {
     action: 'create', module: 'users', recordId: result.userId,
-    newValue: { name, email, roleIds, employee_id: result.employeeId, employee_created: result.employeeCreated },
+    newValue: { name: userName, email, roleIds: normalizedRoleIds, employee_id: result.employeeId, employee_created: result.employeeCreated },
   });
   const user = await queryOne(`SELECT ${USER_COLUMNS} FROM users u WHERE u.id = ?`, [result.userId]);
   const linkedEmployee = result.employeeId
@@ -215,31 +263,63 @@ export const create = asyncHandler(async (req, res) => {
 });
 
 export const update = asyncHandler(async (req, res) => {
-  const existing = await queryOne('SELECT id, email, name, status FROM users WHERE id = ?', [req.params.id]);
+  const existing = await queryOne('SELECT id, employee_code, email, name, phone, status, profile_photo FROM users WHERE id = ?', [req.params.id]);
   if (!existing) throw notFound('User not found');
   await assertUserScope(req, req.params.id);
-  const { employee_code, name, phone, status, profile_photo } = req.body;
-  const linkedEmployee = await queryOne('SELECT id, project_id, wing_id FROM hrms_employees WHERE user_id = ?', [req.params.id]);
+  const linkedEmployee = await queryOne('SELECT id, employee_code, project_id, wing_id FROM hrms_employees WHERE user_id = ?', [req.params.id]);
   if (linkedEmployee) assertProjectAccess(req, linkedEmployee.project_id ? Number(linkedEmployee.project_id) : null, linkedEmployee.wing_id ? Number(linkedEmployee.wing_id) : null);
-  await withTransaction(async (conn) => {
-    await conn.query(
-      `UPDATE users SET employee_code = COALESCE(?, employee_code), name = COALESCE(?, name),
-         phone = COALESCE(?, phone), status = COALESCE(?, status), profile_photo = COALESCE(?, profile_photo)
-       WHERE id = ?`,
-      [nullify(employee_code), nullify(name), nullify(phone), ['active', 'inactive'].includes(status) ? status : null, nullify(profile_photo), req.params.id]
-    );
-    // Keep the identity shown by HR, leave, salary and payroll workflows in sync
-    // with the login directory without allowing the user form to relink records.
-    if (linkedEmployee) {
-      await conn.query(
-        `UPDATE hrms_employees SET employee_code = COALESCE(?, employee_code),
-           name = COALESCE(?, name), phone = COALESCE(?, phone)
-         WHERE id = ?`,
-        [nullify(employee_code), nullify(name), nullify(phone), linkedEmployee.id]
-      );
-    }
-  });
-  await audit(req, { action: 'update', module: 'users', recordId: req.params.id, oldValue: existing, newValue: req.body });
+
+  const data = {};
+  if (req.body.employee_code !== undefined) data.employee_code = normalizeCode(req.body.employee_code);
+  if (req.body.name !== undefined) {
+    data.name = String(req.body.name || '').trim();
+    if (!data.name) throw badRequest('name cannot be empty');
+  }
+  if (req.body.email !== undefined) {
+    data.email = normalizeEmail(req.body.email);
+    if (!data.email) throw badRequest('email cannot be empty');
+  }
+  if (req.body.phone !== undefined) data.phone = nullify(req.body.phone);
+  if (req.body.status !== undefined) {
+    if (!['active', 'inactive'].includes(req.body.status)) throw badRequest('status must be active or inactive');
+    data.status = req.body.status;
+  }
+  if (req.body.profile_photo !== undefined) data.profile_photo = nullify(req.body.profile_photo);
+  if (!Object.keys(data).length) return res.json({ success: true, data: await queryOne(`SELECT ${USER_COLUMNS} FROM users u WHERE u.id = ?`, [req.params.id]) });
+
+  const effectiveCode = data.employee_code !== undefined ? data.employee_code : existing.employee_code;
+  if (effectiveCode && effectiveCode.length > 30) throw badRequest('employee_code must be at most 30 characters for a user login');
+  if (linkedEmployee && !effectiveCode) throw badRequest('A linked employee must have an employee code');
+  try {
+    await withTransaction(async (conn) => {
+      await assertUniqueUserFields(conn, { email: data.email !== undefined ? data.email : existing.email, employeeCode: effectiveCode, ignoreId: req.params.id });
+      if (linkedEmployee && effectiveCode) {
+        const [employeeRows] = await conn.query('SELECT id FROM hrms_employees WHERE employee_code = ? AND id <> ? LIMIT 1 FOR UPDATE', [effectiveCode, linkedEmployee.id]);
+        if (employeeRows[0]) throw conflict('An employee with this code already exists');
+      }
+      if (linkedEmployee && data.email !== undefined) {
+        const [employeeEmailRows] = await conn.query('SELECT id FROM hrms_employees WHERE email = ? AND id <> ? LIMIT 1 FOR UPDATE', [data.email, linkedEmployee.id]);
+        if (employeeEmailRows[0]) throw conflict('An employee with this email already exists');
+      }
+      const userKeys = Object.keys(data);
+      await conn.query(`UPDATE users SET ${userKeys.map((key) => `${key} = ?`).join(', ')} WHERE id = ?`,
+        [...userKeys.map((key) => data[key]), req.params.id]);
+      if (linkedEmployee) {
+        const employeeData = {};
+        for (const key of ['employee_code', 'name', 'email', 'phone']) {
+          if (data[key] !== undefined) employeeData[key] = data[key];
+        }
+        const employeeKeys = Object.keys(employeeData);
+        if (employeeKeys.length) {
+          await conn.query(`UPDATE hrms_employees SET ${employeeKeys.map((key) => `${key} = ?`).join(', ')} WHERE id = ?`,
+            [...employeeKeys.map((key) => employeeData[key]), linkedEmployee.id]);
+        }
+      }
+    });
+  } catch (error) {
+    duplicateConflict(error, 'The email or employee code is already in use');
+  }
+  await audit(req, { action: 'update', module: 'users', recordId: req.params.id, oldValue: existing, newValue: data });
   const user = await queryOne(`SELECT ${USER_COLUMNS} FROM users u WHERE u.id = ?`, [req.params.id]);
   res.json({ success: true, data: user });
 });
