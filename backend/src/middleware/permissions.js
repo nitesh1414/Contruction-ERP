@@ -4,17 +4,13 @@ import { forbidden } from '../utils/helpers.js';
 /**
  * RBAC permission middleware.
  *   requirePermission('projects', 'view')
- * System administrators (admin and super_admin) bypass all checks.
+ * Super admins bypass all checks.
  */
-export function isAdministrator(user) {
-  return Boolean(user?.isSuperAdmin || user?.roles?.some((role) => role.code === 'admin'));
-}
-
 export function requirePermission(module, action) {
   const code = `${module}.${action}`;
   return (req, _res, next) => {
     if (!req.user) return next(forbidden());
-    if (isAdministrator(req.user)) return next();
+    if (req.user.isSuperAdmin) return next();
     if (req.user.permissions.has(code)) return next();
     return next(forbidden(`Missing permission: ${code}`));
   };
@@ -24,7 +20,7 @@ export function requirePermission(module, action) {
 export function requireAnyPermission(...codes) {
   return (req, _res, next) => {
     if (!req.user) return next(forbidden());
-    if (isAdministrator(req.user)) return next();
+    if (req.user.isSuperAdmin) return next();
     if (codes.some((c) => req.user.permissions.has(c))) return next();
     return next(forbidden(`Missing permission, need one of: ${codes.join(', ')}`));
   };
@@ -57,7 +53,7 @@ export async function loadProjectScope(userId, isGlobalAdmin) {
 
 /** Helper: check if user may access (projectId, wingId). */
 export function assertProjectAccess(req, projectId, wingId = null) {
-  if (isAdministrator(req.user)) return;
+  if (req.user.isSuperAdmin) return;
   if (!projectId) return; // nothing to check
   if (!req.projectScope || req.projectScope === null) return;
   if (!req.projectScope.has(Number(projectId))) {
@@ -74,7 +70,7 @@ export function assertProjectAccess(req, projectId, wingId = null) {
 /** Middleware that attaches project scope to the request (after authenticate). */
 export const attachProjectScope = async (req, _res, next) => {
   try {
-    const isGlobalAdmin = isAdministrator(req.user);
+    const isGlobalAdmin = req.user.isSuperAdmin || req.user.roles?.some((role) => role.code === 'admin');
     const { projectScope, wingScope } = await loadProjectScope(req.user.id, isGlobalAdmin);
     req.projectScope = projectScope;
     req.wingScope = wingScope;
@@ -86,7 +82,7 @@ export const attachProjectScope = async (req, _res, next) => {
 
 /** SQL fragment limiting a WHERE clause to assigned projects and, optionally, wings. */
 export function projectScopeSql(req, column = 'project_id', wingColumn = null) {
-  if (isAdministrator(req.user) || req.projectScope === null) return { clause: '', params: [] };
+  if (req.user.isSuperAdmin || req.projectScope === null) return { clause: '', params: [] };
   if (req.projectScope.size === 0) return { clause: ' AND 1=0 ', params: [] };
   const ids = [...req.projectScope];
   if (!wingColumn) return { clause: ` AND ${column} IN (${ids.map(() => '?').join(',')}) `, params: ids };

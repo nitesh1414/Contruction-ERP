@@ -111,7 +111,7 @@ export default function Users() {
           onClose={() => setEditUser(null)}
           onSave={save}
           busy={busy}
-          roles={(roles || []).filter((role: any) => me?.isSuperAdmin || me?.roles?.some((assigned: any) => assigned.code === 'admin') || !['admin', 'super_admin'].includes(role.code))}
+          roles={(roles || []).filter((role: any) => me?.isSuperAdmin || !['admin', 'super_admin'].includes(role.code))}
           projects={projects?.data || []}
           canCreateEmployee={can('hrms.create')}
         />

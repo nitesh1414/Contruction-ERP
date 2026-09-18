@@ -3,7 +3,7 @@ import { query, queryOne, withTransaction } from '../../db/pool.js';
 import {
   asyncHandler, badRequest, conflict, forbidden, notFound, parsePagination, nullify, isValidDate, isValidMonth,
 } from '../../utils/helpers.js';
-import { projectScopeSql, assertProjectAccess, isAdministrator } from '../../middleware/permissions.js';
+import { projectScopeSql, assertProjectAccess } from '../../middleware/permissions.js';
 import { audit } from '../../utils/audit.js';
 import { CrudController } from '../../utils/crud.js';
 
@@ -31,7 +31,7 @@ function truthy(value) {
 }
 
 function assertCanCreateLogin(req) {
-  if (!isAdministrator(req.user) && !req.user.permissions.has('users.create')) {
+  if (!req.user.isSuperAdmin && !req.user.permissions.has('users.create')) {
     throw forbidden('Users → Create permission is required to provision login credentials');
   }
 }
@@ -40,7 +40,7 @@ function assertCanCreateLogin(req) {
 export const loginRoles = asyncHandler(async (req, res) => {
   const rows = await query(
     `SELECT id, name, code, description FROM roles
-      WHERE is_active = 1 ${isAdministrator(req.user) ? '' : "AND code NOT IN ('super_admin', 'admin')"}
+      WHERE is_active = 1 ${req.user.isSuperAdmin ? '' : "AND code NOT IN ('super_admin', 'admin')"}
       ORDER BY name`,
   );
   res.json({ success: true, data: rows });
@@ -52,7 +52,7 @@ async function validateLoginRoles(req, roleIds) {
   const placeholders = ids.map(() => '?').join(',');
   const rows = await query(`SELECT id, code FROM roles WHERE is_active = 1 AND id IN (${placeholders})`, ids);
   if (rows.length !== ids.length) throw badRequest('One or more selected login roles are invalid or inactive');
-  if (!isAdministrator(req.user) && rows.some((role) => LOGIN_PROTECTED_ROLES.has(role.code))) {
+  if (!req.user.isSuperAdmin && rows.some((role) => LOGIN_PROTECTED_ROLES.has(role.code))) {
     throw forbidden('Only an administrator can assign an administrator login role');
   }
   return ids;
