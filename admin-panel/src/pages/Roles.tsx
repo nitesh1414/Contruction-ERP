@@ -28,6 +28,7 @@ export default function Roles() {
         columns={[
           { key: 'name', label: 'Role', render: (r: any) => <div><div style={{ fontWeight: 650 }}>{r.name}</div><div className="muted mono" style={{ fontSize: 11 }}>{r.code}</div></div> },
           { key: 'description', label: 'Description' },
+          { key: 'designation_name', label: 'HR designation(s)', render: (r: any) => r.designation_name || <span className="muted">Not linked</span> },
           { key: 'user_count', label: 'Users', align: 'right' },
           { key: 'permission_count', label: 'Permissions', align: 'right', render: (r: any) => <Badge value="purple" label={String(r.permission_count)} /> },
           { key: 'is_system', label: 'Type', render: (r: any) => <Badge value={r.is_system ? 'blue' : 'gray'} label={r.is_system ? 'System' : 'Custom'} /> },

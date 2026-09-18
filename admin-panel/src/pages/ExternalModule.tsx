@@ -55,7 +55,7 @@ function HrmsAdminView() {
   const employeeColumns: ColumnConfig<any>[] = [
     { key: 'employee_code', label: 'Code' },
     { key: 'name', label: 'Employee', render: (row) => <strong>{row.name}</strong> },
-    { key: 'designation', label: 'Designation' },
+    { key: 'designation', label: 'Designation', render: (row) => <span>{row.designation}{row.designation_role_name ? ` · ${row.designation_role_name}` : ''}</span> },
     { key: 'department', label: 'Department' },
     { key: 'project_name', label: 'Project' },
     { key: 'user_id', label: 'Login', render: (row) => row.user_id

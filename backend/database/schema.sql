@@ -1164,6 +1164,29 @@ CREATE TABLE IF NOT EXISTS petty_cash_entries (
 -- ---------------------------------------------------------------------------
 -- 18. HRMS (employees + leave + salary structure + payroll)
 -- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS hrms_departments (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(100) NOT NULL UNIQUE,
+  code          VARCHAR(40) NOT NULL UNIQUE,
+  description   VARCHAR(255) NULL,
+  is_active     TINYINT(1) NOT NULL DEFAULT 1,
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS hrms_designations (
+  id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(120) NOT NULL UNIQUE,
+  code          VARCHAR(60) NOT NULL UNIQUE,
+  role_id       BIGINT UNSIGNED NOT NULL,
+  description   VARCHAR(255) NULL,
+  is_active     TINYINT(1) NOT NULL DEFAULT 1,
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_hrms_designation_role (role_id),
+  CONSTRAINT fk_hrms_designation_role FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS hrms_employees (
   id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   employee_code    VARCHAR(40) NOT NULL UNIQUE,

@@ -6,6 +6,7 @@ import {
 import { audit } from '../../utils/audit.js';
 import { sendCsv } from '../../utils/csv.js';
 import { assertProjectAccess } from '../../middleware/permissions.js';
+import { validateEmployeeMasterValues, getDesignationRoleId } from '../hrms/hrms-masters.js';
 
 const USER_COLUMNS = `u.id, u.employee_code, u.name, u.email, u.phone, u.profile_photo, u.status, u.last_login_at, u.created_at,
   (SELECT e.id FROM hrms_employees e WHERE e.user_id = u.id LIMIT 1) AS employee_id,
@@ -176,8 +177,6 @@ export const create = asyncHandler(async (req, res) => {
   const userName = String(name || '').trim();
   if (!userName || !email) throw badRequest('name and email are required');
   if (!password || String(password).length < 8) throw badRequest('password must be at least 8 characters');
-  const normalizedRoleIds = await validateRoleIds(req, roleIds);
-
   const wantsEmployee = truthy(createEmployee);
   if (wantsEmployee && !req.user.isSuperAdmin && !req.user.permissions.has('hrms.create')) {
     throw forbidden('HRMS → Create permission is required to create the linked employee record');
@@ -188,6 +187,12 @@ export const create = asyncHandler(async (req, res) => {
   if (employee && status === 'inactive' && (!req.body.employee || req.body.employee.is_active === undefined)) employee.is_active = 0;
   if ((employee?.employee_code || normalizeCode(employee_code))?.length > 30) throw badRequest('employee_code must be at most 30 characters for a user login');
   if (employee?.email === null) employee.email = email;
+  if (employee) await validateEmployeeMasterValues(employee);
+  const designationRoleId = employee ? await getDesignationRoleId(employee.designation) : null;
+  const normalizedRoleIds = await validateRoleIds(req, [
+    ...(Array.isArray(roleIds) ? roleIds : []),
+    ...(designationRoleId ? [designationRoleId] : []),
+  ]);
   if (employee?.project_id) assertProjectAccess(req, Number(employee.project_id), employee.wing_id ? Number(employee.wing_id) : null);
   const accessEntries = Array.isArray(projectAccess) ? projectAccess : [];
   const effectiveProjectAccess = accessEntries.filter((entry) => entry && entry.project_id);
@@ -328,6 +333,9 @@ export const update = asyncHandler(async (req, res) => {
     employeeData.email = data.email !== undefined ? data.email : existing.email;
     employeeData.phone = data.phone !== undefined ? data.phone : existing.phone;
     data.employee_code = employeeData.employee_code;
+    await validateEmployeeMasterValues(employeeData);
+    const designationRoleId = await getDesignationRoleId(employeeData.designation);
+    const designationRoleIds = await validateRoleIds(req, designationRoleId ? [designationRoleId] : [], { required: false });
     if (employeeData.employee_code.length > 30) throw badRequest('employee_code must be at most 30 characters for a user login');
     if (desiredUserStatus === 'inactive' && employeeInput.is_active === undefined) employeeData.is_active = 0;
     if (employeeData.project_id) assertProjectAccess(req, Number(employeeData.project_id), employeeData.wing_id ? Number(employeeData.wing_id) : null);
@@ -386,7 +394,10 @@ export const update = asyncHandler(async (req, res) => {
           await conn.query('INSERT IGNORE INTO user_projects (user_id, project_id, wing_id) VALUES (?,?,?)',
             [req.params.id, linkedProjectId, linkedWingId || 0]);
         }
-        employeeLinkMeta = { employeeId, created: !employeeMatch };
+        for (const roleId of designationRoleIds) {
+          await conn.query('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?,?)', [req.params.id, roleId]);
+        }
+        employeeLinkMeta = { employeeId, created: !employeeMatch, designationRoleId: designationRoleId || null };
       }
 
       const userKeys = Object.keys(data);
@@ -424,7 +435,12 @@ export const update = asyncHandler(async (req, res) => {
 export const setRoles = asyncHandler(async (req, res) => {
   const { roleIds } = req.body;
   if (!Array.isArray(roleIds)) throw badRequest('roleIds must be an array');
-  const normalizedRoleIds = await validateRoleIds(req, roleIds, { required: false });
+  const linkedEmployee = await queryOne('SELECT designation FROM hrms_employees WHERE user_id = ?', [req.params.id]);
+  const designationRoleId = linkedEmployee ? await getDesignationRoleId(linkedEmployee.designation) : null;
+  const normalizedRoleIds = await validateRoleIds(req, [
+    ...roleIds,
+    ...(designationRoleId ? [designationRoleId] : []),
+  ], { required: false });
   const existing = await queryOne('SELECT id, name FROM users WHERE id = ?', [req.params.id]);
   if (!existing) throw notFound('User not found');
   await assertUserScope(req, req.params.id);

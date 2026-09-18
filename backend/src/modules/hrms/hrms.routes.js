@@ -9,6 +9,20 @@ router.use(authenticate, attachProjectScope);
 router.get('/summary',         requirePermission('hrms', 'view'),    ctrl.hrmsSummary);
 router.get('/login-roles',     requirePermission('hrms', 'view'),    ctrl.loginRoles);
 
+// HR masters used by the employee directory
+router.get('/departments',        requirePermission('hrms', 'view'),   ctrl.departments.list);
+router.get('/departments/export', requirePermission('hrms', 'export'), ctrl.departments.exportCsv);
+router.get('/departments/:id',    requirePermission('hrms', 'view'),   ctrl.departments.getOne);
+router.post('/departments',       requirePermission('hrms', 'create'), ctrl.departments.create);
+router.put('/departments/:id',    requirePermission('hrms', 'edit'),   ctrl.departments.update);
+router.delete('/departments/:id',requirePermission('hrms', 'delete'),  ctrl.departments.remove);
+router.get('/designations',        requirePermission('hrms', 'view'),   ctrl.designations.list);
+router.get('/designations/export', requirePermission('hrms', 'export'), ctrl.designations.exportCsv);
+router.get('/designations/:id',    requirePermission('hrms', 'view'),   ctrl.designations.getOne);
+router.post('/designations',       requirePermission('hrms', 'create'), ctrl.designations.create);
+router.put('/designations/:id',    requirePermission('hrms', 'edit'),   ctrl.designations.update);
+router.delete('/designations/:id',requirePermission('hrms', 'delete'),  ctrl.designations.remove);
+
 // employees
 router.get('/employees',       requirePermission('hrms', 'view'),    ctrl.listEmployees);
 router.get('/employees/:id',   requirePermission('hrms', 'view'),    ctrl.getEmployee);

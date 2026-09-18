@@ -153,14 +153,25 @@ function UserFormModal({ user, onClose, onSave, busy, roles, projects, canCreate
     (user?.projectAccess || []).map((p: any) => ({ project_id: p.project_id, wing_id: p.wing_id ?? 0 }))
   );
   const { data: wings } = useFetch<any>('/wings', access.length ? { projectId: access[0]?.project_id || undefined } : {});
+  const { data: departments } = useFetch<any>('/hrms/departments', { limit: 200, is_active: 1 });
+  const { data: designations } = useFetch<any>('/hrms/designations', { limit: 200, is_active: 1 });
   const toast = useToast();
+  const linkedDesignation = (designations?.data || []).find((row: any) => row.name === employeeForm.designation);
+  const effectiveRoleIds = [...new Set([
+    ...roleIds,
+    ...(linkedDesignation?.role_id ? [Number(linkedDesignation.role_id)] : []),
+  ])];
 
   const submit = () => {
     if (isNew && (!form.password || form.password.length < 8)) { toast.push('Password must be at least 8 characters', 'error'); return; }
-    if (isNew && !roleIds.length) { toast.push('Select at least one role for the user', 'error'); return; }
-    const normalizedRoleIds = [...roleIds].sort((a, b) => a - b);
+    if (isNew && !effectiveRoleIds.length) { toast.push('Select at least one role or choose a designation linked to a role', 'error'); return; }
+    if (createEmployee && (!employeeForm.department || !employeeForm.designation)) {
+      toast.push('Select a department and designation from HRMS master data', 'error');
+      return;
+    }
+    const normalizedRoleIds = [...effectiveRoleIds].sort((a, b) => a - b);
     const roleIdsChanged = normalizedRoleIds.length !== initialRoleIds.length || normalizedRoleIds.some((id, index) => id !== initialRoleIds[index]);
-    const payload: any = { ...form, id: user?.id, roleIds, roleIdsChanged, projectAccess: access.filter((a) => a.project_id) };
+    const payload: any = { ...form, id: user?.id, roleIds: normalizedRoleIds, roleIdsChanged, projectAccess: access.filter((a) => a.project_id) };
     if (createEmployee) {
       payload.createEmployee = true;
       payload.employee = {
@@ -208,8 +219,8 @@ function UserFormModal({ user, onClose, onSave, busy, roles, projects, canCreate
           {!canCreateEmployee && <div className="form-hint" style={{ marginTop: 8 }}>HRMS → Create permission is required to add the linked payroll employee record.</div>}
           {createEmployee && (
             <div className="form-grid" style={{ marginTop: 12 }}>
-              <Field config={{ key: 'department', label: 'Department', type: 'text' }} value={employeeForm.department} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, department: v }))} />
-              <Field config={{ key: 'designation', label: 'Designation', type: 'text' }} value={employeeForm.designation} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, designation: v }))} />
+              <Field config={{ key: 'department', label: 'Department', type: 'select', required: true, options: (departments?.data || []).map((row: any) => ({ value: row.name, label: row.name })) }} value={employeeForm.department} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, department: v }))} />
+              <Field config={{ key: 'designation', label: 'Designation / role', type: 'select', required: true, options: (designations?.data || []).map((row: any) => ({ value: row.name, label: row.role_name ? `${row.name} · ${row.role_name}` : row.name })) }} value={employeeForm.designation} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, designation: v }))} />
               <Field config={{ key: 'date_of_joining', label: 'Date of joining', type: 'date' }} value={employeeForm.date_of_joining} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, date_of_joining: v }))} />
               <Field config={{ key: 'employment_type', label: 'Employment type', type: 'select', options: [{ value: 'permanent', label: 'Permanent' }, { value: 'contract', label: 'Contract' }, { value: 'probation', label: 'Probation' }, { value: 'intern', label: 'Intern' }] }} value={employeeForm.employment_type} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, employment_type: v }))} />
               <Field config={{ key: 'project_id', label: 'Payroll project', type: 'select', options: projects.map((p: any) => ({ value: p.id, label: `${p.name} · ${p.code}` })) }} value={employeeForm.project_id} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, project_id: v, wing_id: '' }))} />
@@ -230,13 +241,14 @@ function UserFormModal({ user, onClose, onSave, busy, roles, projects, canCreate
           <button
             key={r.id}
             type="button"
-            className={`btn sm ${roleIds.includes(r.id) ? 'primary' : 'outline'}`}
+            className={`btn sm ${effectiveRoleIds.includes(r.id) ? 'primary' : 'outline'}`}
             onClick={() => setRoleIds((s) => s.includes(r.id) ? s.filter((id) => id !== r.id) : [...s, r.id])}
           >
-            {roleIds.includes(r.id) ? '✓ ' : ''}{r.name}
+            {effectiveRoleIds.includes(r.id) ? '✓ ' : ''}{r.name}
           </button>
         ))}
       </div>
+      {linkedDesignation?.role_name && <div className="form-hint" style={{ marginTop: -8, marginBottom: 16 }}>The selected designation <strong>{linkedDesignation.name}</strong> automatically includes <strong>{linkedDesignation.role_name}</strong>. Other selected roles remain independently configurable.</div>}
 
       <h3>Project Access <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>— empty with Super Admin role means all projects</span></h3>
       {access.map((a, idx) => (

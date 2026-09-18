@@ -13,7 +13,7 @@ export interface UserProfile {
   isSuperAdmin: boolean;
   projectAccess: { project_id: number; wing_id: number; project_name: string; wing_name?: string | null }[];
   employee?: {
-    id: number; employee_code: string; department?: string | null; designation?: string | null;
+    id: number; employee_code: string; department?: string | null; designation?: string | null; effective_designation?: string | null; designation_role_name?: string | null;
     date_of_joining?: string | null; employment_type?: string | null; status?: string | null;
     project_name?: string | null; wing_name?: string | null;
   } | null;
@@ -120,6 +120,10 @@ export interface FieldConfig {
   /** Optional — omitted means a plain text input. */
   type?: 'text' | 'number' | 'date' | 'time' | 'select' | 'textarea' | 'checkbox' | 'email' | 'password' | 'datetime-local';
   options?: { value: string | number; label: string }[];
+  optionsEndpoint?: string;
+  optionsParams?: Record<string, any>;
+  optionsValueKey?: string;
+  optionsLabelKey?: string;
   required?: boolean;
   placeholder?: string;
   hint?: string;

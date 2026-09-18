@@ -234,6 +234,76 @@ async function syncHrmsDefaults(conn) {
   }
 }
 
+function masterCode(value) {
+  const code = String(value).toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 60).toUpperCase();
+  return code || 'LEGACY_MASTER';
+}
+
+async function syncHrmsMasters(conn) {
+  const departments = [
+    ['Management', 'MANAGEMENT', 'Leadership and management'],
+    ['Engineering', 'ENGINEERING', 'Design and engineering'],
+    ['Site Operations', 'SITE_OPERATIONS', 'Construction site operations'],
+    ['Finance & Accounts', 'FINANCE_ACCOUNTS', 'Finance, accounts and payroll'],
+    ['Human Resources', 'HUMAN_RESOURCES', 'People operations and HR'],
+    ['Sales & Marketing', 'SALES_MARKETING', 'Sales and marketing'],
+    ['Procurement & Stores', 'PROCUREMENT_STORES', 'Procurement, stores and inventory'],
+    ['Quality & Safety', 'QUALITY_SAFETY', 'Quality assurance and safety'],
+    ['Administration', 'ADMINISTRATION', 'Administration and support'],
+  ];
+  for (const row of departments) {
+    await conn.query(
+      `INSERT INTO hrms_departments (name, code, description) VALUES (?,?,?)
+       ON DUPLICATE KEY UPDATE description = VALUES(description)`, row
+    );
+  }
+
+  const [roles] = await conn.query('SELECT id, name, code FROM roles WHERE is_active = 1');
+  for (const role of roles) {
+    await conn.query(
+      'INSERT IGNORE INTO hrms_designations (name, code, role_id, description) VALUES (?,?,?,?)',
+      [role.name, role.code.toUpperCase(), role.id, `Role designation for ${role.name}`]
+    );
+  }
+
+  // Preserve older employee records by promoting their existing free-text
+  // values into the master tables before the UI starts enforcing selections.
+  const [legacyDepartments] = await conn.query(
+    `SELECT DISTINCT department AS name FROM hrms_employees
+      WHERE department IS NOT NULL AND TRIM(department) <> ''`
+  );
+  for (const row of legacyDepartments) {
+    await conn.query(
+      'INSERT IGNORE INTO hrms_departments (name, code, description) VALUES (?,?,?)',
+      [row.name, masterCode(row.name), 'Imported from existing employee records']
+    );
+  }
+  const [legacyDesignations] = await conn.query(
+    `SELECT DISTINCT designation AS name FROM hrms_employees
+      WHERE designation IS NOT NULL AND TRIM(designation) <> ''`
+  );
+  for (const row of legacyDesignations) {
+    const designationCode = masterCode(row.name);
+    const legacyRoleCode = `designation_${designationCode.toLowerCase()}`.slice(0, 60);
+    const [matchingRoles] = await conn.query(
+      'SELECT id FROM roles WHERE name = ? OR code = ? LIMIT 1',
+      [row.name, legacyRoleCode]
+    );
+    let roleId = matchingRoles[0]?.id;
+    if (!roleId) {
+      const [roleResult] = await conn.query(
+        'INSERT INTO roles (name, code, description, is_system) VALUES (?,?,?,?)',
+        [row.name, legacyRoleCode, `Imported role for legacy designation ${row.name}`, 0]
+      );
+      roleId = roleResult.insertId;
+    }
+    await conn.query(
+      'INSERT IGNORE INTO hrms_designations (name, code, role_id, description) VALUES (?,?,?,?)',
+      [row.name, designationCode, roleId, 'Imported from existing employee records']
+    );
+  }
+}
+
 async function syncPermissions(conn) {
   await ensureHrmsUserLinkConstraint(conn);
   await ensureSalaryEffectiveConstraint(conn);
@@ -263,6 +333,7 @@ async function syncPermissions(conn) {
       }
     }
   }
+  await syncHrmsMasters(conn);
 }
 
 async function main() {
@@ -336,6 +407,7 @@ async function main() {
       await conn.query(`INSERT INTO role_permissions (role_id, permission_id) VALUES ${flat.map(() => '(?,?)').join(',')}`, flat.flat());
     }
   }
+  await syncHrmsMasters(conn);
 
   // ---------------- Users ----------------
   console.log('[seed] users');

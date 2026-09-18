@@ -6,12 +6,55 @@ import {
 import { projectScopeSql, assertProjectAccess } from '../../middleware/permissions.js';
 import { audit } from '../../utils/audit.js';
 import { CrudController } from '../../utils/crud.js';
+import {
+  validateEmployeeMasterValues, getDesignationRoleId, validateDepartmentMaster, validateDesignationMaster,
+  preventUsedMasterDelete, preventUsedMasterDisable, preventUsedMasterRename,
+} from './hrms-masters.js';
 
 /* Convenience admin controllers using CrudController */
 export const leaveTypes = new CrudController({
   table: 'hrms_leave_types', module: 'hrms',
   fields: ['name', 'code', 'annual_quota', 'is_paid', 'color_code', 'description', 'is_active'],
   searchColumns: ['name', 'code'], defaultSort: 'name ASC',
+});
+
+export const departments = new CrudController({
+  table: 'hrms_departments', module: 'hrms',
+  fields: ['name', 'code', 'description', 'is_active'],
+  searchColumns: ['name', 'code', 'description'],
+  filters: [{ key: 'is_active', column: 'hrms_departments.is_active' }],
+  defaultSort: 'hrms_departments.name ASC',
+  beforeCreate: (data) => validateDepartmentMaster(data),
+  beforeUpdate: async (data, _req, existing) => {
+    await preventUsedMasterDisable('hrms_departments', existing, data, 'department');
+    await preventUsedMasterRename('hrms_departments', existing, data, 'department');
+    if (data.name === undefined && data.code === undefined) return data;
+    return validateDepartmentMaster({ ...existing, ...data });
+  },
+  beforeDelete: (existing) => preventUsedMasterDelete('hrms_departments', existing.name, 'department'),
+});
+
+export const designations = new CrudController({
+  table: 'hrms_designations', module: 'hrms',
+  fields: ['name', 'code', 'role_id', 'description', 'is_active'],
+  searchColumns: ['d.name', 'd.code', 'r.name', 'r.code'],
+  filters: [{ key: 'is_active', column: 'd.is_active' }],
+  sortableColumns: ['d.name', 'd.code', 'r.name'],
+  defaultSort: 'd.name ASC',
+  listSql: `SELECT d.*, r.name AS role_name, r.code AS role_code
+              FROM hrms_designations d LEFT JOIN roles r ON r.id = d.role_id`,
+  countSql: `SELECT COUNT(*) AS total FROM hrms_designations d LEFT JOIN roles r ON r.id = d.role_id`,
+  beforeCreate: (data) => validateDesignationMaster(data),
+  beforeUpdate: async (data, _req, existing) => {
+    await preventUsedMasterDisable('hrms_designations', existing, data, 'designation');
+    await preventUsedMasterRename('hrms_designations', existing, data, 'designation');
+    const merged = await validateDesignationMaster({ ...existing, ...data });
+    if (data.name !== undefined) data.name = merged.name;
+    if (data.name !== undefined || data.code !== undefined) data.code = merged.code;
+    if (data.role_id !== undefined) data.role_id = merged.role_id;
+    return data;
+  },
+  beforeDelete: (existing) => preventUsedMasterDelete('hrms_designations', existing.name, 'designation'),
 });
 
 /* ------------------------------- Employees -------------------------------- */
@@ -145,6 +188,9 @@ async function createOrLinkLogin(conn, req, employee, password, roleIds) {
     if (employee.project_id) {
       await conn.query('INSERT IGNORE INTO user_projects (user_id, project_id, wing_id) VALUES (?,?,?)', [existingUser.id, employee.project_id, employee.wing_id || 0]);
     }
+    for (const roleId of roleIds) {
+      await conn.query('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?, ?)', [existingUser.id, roleId]);
+    }
     return { userId: existingUser.id, created: false };
   }
 
@@ -171,10 +217,13 @@ async function createOrLinkLogin(conn, req, employee, password, roleIds) {
 async function employeeWithUser(id) {
   return queryOne(
     `SELECT e.*, p.name AS project_name, w.name AS wing_name,
+            r.name AS designation_role_name, r.code AS designation_role_code,
             u.name AS user_name, u.email AS user_email, u.status AS user_status
        FROM hrms_employees e
        LEFT JOIN projects p ON p.id = e.project_id
        LEFT JOIN wings w ON w.id = e.wing_id
+       LEFT JOIN hrms_designations d ON d.name = e.designation
+       LEFT JOIN roles r ON r.id = d.role_id
        LEFT JOIN users u ON u.id = e.user_id
       WHERE e.id = ?`, [id]
   );
@@ -198,10 +247,13 @@ export const listEmployees = asyncHandler(async (req, res) => {
   params.push(...scope.params);
   const rows = await query(
     `SELECT e.*, p.name AS project_name, w.name AS wing_name,
+            r.name AS designation_role_name, r.code AS designation_role_code,
             u.name AS user_name, u.email AS user_email, u.status AS user_status
        FROM hrms_employees e
        LEFT JOIN projects p ON p.id = e.project_id
        LEFT JOIN wings w    ON w.id = e.wing_id
+       LEFT JOIN hrms_designations d ON d.name = e.designation
+       LEFT JOIN roles r ON r.id = d.role_id
        LEFT JOIN users u    ON u.id = e.user_id
      ${whereSql} ORDER BY e.name LIMIT ? OFFSET ?`, [...params, limit, offset]);
   const count = await queryOne(`SELECT COUNT(*) AS total FROM hrms_employees e ${whereSql}`, params);
@@ -278,10 +330,12 @@ async function syncUserFromEmployee(conn, employee, userId) {
 
 export const createEmployee = asyncHandler(async (req, res) => {
   const data = normalizeEmployeeData(req.body);
+  await validateEmployeeMasterValues(data);
   if (!data.employee_code) data.employee_code = `EMP-${Date.now().toString(36).toUpperCase()}`;
   if (data.project_id) assertProjectAccess(req, Number(data.project_id), data.wing_id ? Number(data.wing_id) : null);
 
   const wantsLogin = truthy(req.body.create_login);
+  const designationRoleId = await getDesignationRoleId(data.designation);
   let roleIds = [];
   if (wantsLogin) {
     assertCanCreateLogin(req);
@@ -289,7 +343,10 @@ export const createEmployee = asyncHandler(async (req, res) => {
     if (typeof req.body.login_password !== 'string' || req.body.login_password.length < 8) {
       throw badRequest('Login password must be at least 8 characters');
     }
-    roleIds = await validateLoginRoles(req, req.body.login_role_ids);
+    const requestedRoleIds = Array.isArray(req.body.login_role_ids) ? req.body.login_role_ids : [];
+    roleIds = await validateLoginRoles(req, [...requestedRoleIds, ...(designationRoleId ? [designationRoleId] : [])]);
+  } else if (data.user_id && designationRoleId) {
+    await validateLoginRoles(req, [designationRoleId]);
   }
 
   let result;
@@ -321,6 +378,9 @@ export const createEmployee = asyncHandler(async (req, res) => {
         if (data.project_id) {
           await conn.query('INSERT IGNORE INTO user_projects (user_id, project_id, wing_id) VALUES (?,?,?)', [userId, data.project_id, data.wing_id || 0]);
         }
+        if (designationRoleId) {
+          await conn.query('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?,?)', [userId, designationRoleId]);
+        }
       }
       if (wantsLogin) {
         const login = await createOrLinkLogin(conn, req, {
@@ -351,7 +411,12 @@ export const createEmployeeLogin = asyncHandler(async (req, res) => {
   if (typeof req.body.password !== 'string' || req.body.password.length < 8) {
     throw badRequest('Login password must be at least 8 characters');
   }
-  const roleIds = await validateLoginRoles(req, req.body.roleIds || req.body.login_role_ids);
+  const designationRoleId = await getDesignationRoleId(employee.designation);
+  const requestedRoleIds = req.body.roleIds || req.body.login_role_ids;
+  const roleIds = await validateLoginRoles(req, [
+    ...(Array.isArray(requestedRoleIds) ? requestedRoleIds : []),
+    ...(designationRoleId ? [designationRoleId] : []),
+  ]);
   let result;
   try {
     result = await withTransaction((conn) => createOrLinkLogin(
@@ -369,6 +434,7 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   if (!existing) throw notFound('Employee not found');
   assertProjectAccess(req, existing.project_id ? Number(existing.project_id) : null, existing.wing_id ? Number(existing.wing_id) : null);
   const data = normalizeEmployeeData(req.body, { partial: true });
+  await validateEmployeeMasterValues(data, { partial: true });
   if (data.project_id) assertProjectAccess(req, Number(data.project_id), data.wing_id ? Number(data.wing_id) : null);
 
   const wantsLogin = truthy(req.body.create_login);
@@ -381,8 +447,17 @@ export const updateEmployee = asyncHandler(async (req, res) => {
       throw badRequest('Login password must be at least 8 characters');
     }
   }
+  const designationRoleId = await getDesignationRoleId(data.designation !== undefined ? data.designation : existing.designation);
+  const willLinkLogin = Boolean(existing.user_id || data.user_id || wantsLogin);
+  if (designationRoleId && willLinkLogin) await validateLoginRoles(req, [designationRoleId]);
   let loginRoleIds = [];
-  if (wantsLogin) loginRoleIds = await validateLoginRoles(req, req.body.login_role_ids || req.body.roleIds);
+  if (wantsLogin) {
+    const requestedRoleIds = req.body.login_role_ids || req.body.roleIds;
+    loginRoleIds = await validateLoginRoles(req, [
+      ...(Array.isArray(requestedRoleIds) ? requestedRoleIds : []),
+      ...(designationRoleId ? [designationRoleId] : []),
+    ]);
+  }
 
   let loginMeta = null;
   try {
@@ -417,6 +492,9 @@ export const updateEmployee = asyncHandler(async (req, res) => {
         await syncUserFromEmployee(conn, { ...updatedEmployee, user_id: syncUserId }, syncUserId);
         if (syncProjectId) {
           await conn.query('INSERT IGNORE INTO user_projects (user_id, project_id, wing_id) VALUES (?,?,?)', [syncUserId, syncProjectId, syncWingId || 0]);
+        }
+        if (designationRoleId) {
+          await conn.query('INSERT IGNORE INTO user_roles (user_id, role_id) VALUES (?,?)', [syncUserId, designationRoleId]);
         }
       }
       if (wantsLogin) {

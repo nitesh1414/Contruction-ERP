@@ -57,7 +57,7 @@ export default function Profile() {
             <div className="compact-kv">
               <span>Employee code</span><strong>{user.employee.employee_code}</strong>
               <span>Department</span><strong>{user.employee.department || '—'}</strong>
-              <span>Designation</span><strong>{user.employee.designation || '—'}</strong>
+              <span>Designation</span><strong>{user.employee.effective_designation || user.employee.designation || '—'}</strong>
               <span>Employment</span><strong>{user.employee.employment_type || '—'}</strong>
               <span>Project</span><strong>{user.employee.project_name || '—'}</strong>
               <span>Status</span><Badge value={user.employee.status || 'active'} />

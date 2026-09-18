@@ -124,6 +124,7 @@ export class CrudController {
     const o = this.options;
     const existing = await queryOne(`SELECT * FROM ${o.table} WHERE id = ?`, [req.params.id]);
     if (!existing) throw notFound();
+    if (o.beforeDelete) await o.beforeDelete(existing, req);
     await query(`DELETE FROM ${o.table} WHERE id = ?`, [req.params.id]);
     if (o.afterWrite) await o.afterWrite('delete', req.params.id, req);
     await audit(req, { action: 'delete', module: o.module, recordId: req.params.id, oldValue: existing });

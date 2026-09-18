@@ -51,10 +51,14 @@ async function loadUserWithRoles(userId) {
     [userId]
   );
   const employee = await queryOne(
-    `SELECT e.id, e.employee_code, e.department, e.designation, e.date_of_joining,
-            e.employment_type, e.status, e.is_active, e.project_id, e.wing_id,
+    `SELECT e.id, e.employee_code, e.department, e.designation,
+            r.name AS designation_role_name, r.code AS designation_role_code,
+            COALESCE(r.name, e.designation) AS effective_designation,
+            e.date_of_joining, e.employment_type, e.status, e.is_active, e.project_id, e.wing_id,
             p.name AS project_name, w.name AS wing_name
        FROM hrms_employees e
+       LEFT JOIN hrms_designations d ON d.name = e.designation
+       LEFT JOIN roles r ON r.id = d.role_id
        LEFT JOIN projects p ON p.id = e.project_id
        LEFT JOIN wings w ON w.id = e.wing_id
       WHERE e.user_id = ?`, [userId]

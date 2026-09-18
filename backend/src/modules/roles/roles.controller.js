@@ -4,7 +4,10 @@ import { audit } from '../../utils/audit.js';
 
 export const listRoles = asyncHandler(async (_req, res) => {
   const roles = await query(
-    `SELECT r.*, (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
+    `SELECT r.*,
+            (SELECT GROUP_CONCAT(d.name ORDER BY d.name SEPARATOR ', ') FROM hrms_designations d WHERE d.role_id = r.id) AS designation_name,
+            (SELECT GROUP_CONCAT(d.code ORDER BY d.code SEPARATOR ', ') FROM hrms_designations d WHERE d.role_id = r.id) AS designation_code,
+            (SELECT COUNT(*) FROM role_permissions rp WHERE rp.role_id = r.id) AS permission_count,
             (SELECT COUNT(*) FROM user_roles ur WHERE ur.role_id = r.id) AS user_count
        FROM roles r ORDER BY r.name`
   );
@@ -48,7 +51,12 @@ export const updateRole = asyncHandler(async (req, res) => {
   const role = await queryOne('SELECT * FROM roles WHERE id = ?', [req.params.id]);
   if (!role) throw notFound('Role not found');
   const { name, description, is_active } = req.body;
-  if (role.is_system && is_active === false) throw badRequest('System roles cannot be deactivated');
+  const deactivating = is_active === false || is_active === 0 || is_active === '0';
+  if (role.is_system && deactivating) throw badRequest('System roles cannot be deactivated');
+  if (deactivating) {
+    const designation = await queryOne('SELECT id FROM hrms_designations WHERE role_id = ? LIMIT 1', [req.params.id]);
+    if (designation) throw conflict('This role is linked to an HR designation — deactivate or relink the designation first');
+  }
   await query('UPDATE roles SET name = COALESCE(?, name), description = COALESCE(?, description), is_active = COALESCE(?, is_active) WHERE id = ?',
     [name ? String(name).trim() : null, description !== undefined ? String(description) : null, is_active === undefined ? null : (is_active ? 1 : 0), req.params.id]);
   await audit(req, { action: 'update', module: 'roles', recordId: req.params.id, newValue: req.body });
@@ -79,6 +87,8 @@ export const deleteRole = asyncHandler(async (req, res) => {
   if (role.is_system) throw badRequest('System roles cannot be deleted');
   const usage = await queryOne('SELECT COUNT(*) AS c FROM user_roles WHERE role_id = ?', [req.params.id]);
   if (usage.c > 0) throw conflict('Role is assigned to users — reassign them first');
+  const designation = await queryOne('SELECT id FROM hrms_designations WHERE role_id = ? LIMIT 1', [req.params.id]);
+  if (designation) throw conflict('Role is linked to an HR designation — relink the designation first');
   await query('DELETE FROM roles WHERE id = ?', [req.params.id]);
   await audit(req, { action: 'delete', module: 'roles', recordId: req.params.id, oldValue: { name: role.name } });
   res.json({ success: true, message: 'Role deleted' });

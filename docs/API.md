@@ -52,7 +52,9 @@ When `createEmployee` is true, `employee` may contain `employee_code`, `departme
 
 ## /roles *(roles.* perms)*
 
-`GET /roles/permissions` (grouped permission catalog) · `GET /roles` · `GET /roles/:id` (with permission ids) · `POST /roles` `{name, code?, description?}` · `PUT /roles/:id` · `PUT /roles/:id/permissions` `{permission_ids: []}` · `DELETE /roles/:id` (custom roles only).
+`GET /roles/permissions` (grouped permission catalog) · `GET /roles` (includes the linked HR designation, when present) · `GET /roles/:id` (with permission ids) · `POST /roles` `{name, code?, description?}` · `PUT /roles/:id` · `PUT /roles/:id/permissions` `{permission_ids: []}` · `DELETE /roles/:id` (custom roles only).
+
+Designation linkage is managed through the HRMS masters below. A designation has one active role mapping, while a role's permissions remain independently editable here; the mapping never grants permissions outside the linked role's configured permission set.
 
 ## /projects · /wings · /floors · /units
 
@@ -113,7 +115,11 @@ Status: `pending | in_progress | completed | delayed`.
 `GET /petty-cash?projectId&txn_type&category&from&to&search` · `GET /petty-cash/summary?projectId` — cash-on-hand, category totals and recent activity · `GET /petty-cash/export` CSV · `POST /petty-cash` `{project_id, txn_type: topup|expense|replenish, amount, txn_date, category?, paid_to?, received_by?, description?, remarks?}` · `POST /petty-cash/topup` (same body with `txn_type` forced to `topup`) · `PUT /petty-cash/:id` · `DELETE /petty-cash/:id`. Entries and summaries are project-scoped.
 
 ## /hrms *(hrms.* perms)*
-`GET /hrms/summary` (includes `totalEmployees`, `linkedLogins`, active/on-leave counts and payroll totals) · `GET /hrms/login-roles` (active roles safe for employee login assignment) · CRUD `/hrms/employees` (paginated filters `projectId`, `department`, `status`, `is_active`, `employment_type`, `search`) · `POST /hrms/employees/:id/login`. The Admin Console and Project Tracking web app use this same employee directory; an Admin-role user has global project visibility and can create, update and delete employee records.
+`GET /hrms/summary` (includes `totalEmployees`, `linkedLogins`, active/on-leave counts and payroll totals) · `GET /hrms/login-roles` (active roles safe for employee login assignment) · CRUD `/hrms/departments` · CRUD `/hrms/designations` · CRUD `/hrms/employees` (paginated filters `projectId`, `department`, `status`, `is_active`, `employment_type`, `search`) · `POST /hrms/employees/:id/login`.
+
+Department and designation are master-backed employee fields. `GET /hrms/departments?is_active=1` returns selectable department records. `GET /hrms/designations?is_active=1` returns selectable designation records with `role_name` and `role_code`; create/update designation bodies require an active `role_id`, and multiple designations may share a role's permission profile. Employee create/edit and user conversion reject arbitrary or inactive department/designation names. Seed/migration promotes legacy non-empty employee text values into the masters so existing directory records remain usable; an unmatched legacy designation receives an empty custom role that administrators can configure separately.
+
+The linked role is the employee's effective designation in login/profile workflows: login provisioning automatically includes the designation's role, and a linked user receives that role when the employee is converted or its designation is changed. Explicit login roles are retained. Permission checks still use the role-permission matrix, so designation linkage does not grant administrator-wide access or bypass configurable RBAC. The Admin Console and Project Tracking web app use this same employee directory; an Admin-role user has global project visibility and can create, update and delete employee records.
 
 `POST /hrms/employees` accepts the employee fields plus the optional login workflow. The UI explicitly asks whether credentials are required; when `create_login` is false, an email is not implicitly linked to an unrelated login:
 
@@ -122,8 +128,8 @@ Status: `pending | in_progress | completed | delayed`.
   "employee_code": "EMP-104",
   "name": "Asha Rao",
   "email": "asha@example.com",
-  "department": "Accounts",
-  "designation": "Payroll Officer",
+  "department": "Finance & Accounts",
+  "designation": "Accountant",
   "project_id": 12,
   "create_login": true,
   "login_password": "temporary-secret",

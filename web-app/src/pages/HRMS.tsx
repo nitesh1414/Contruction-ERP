@@ -16,6 +16,8 @@ function EmployeesTab() {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<Record<string, any>>({});
   const { data: projects } = useFetch<any>('/projects', { limit: 200 });
+  const { data: departments } = useFetch<any>('/hrms/departments', { limit: 200, is_active: 1 });
+  const { data: designations } = useFetch<any>('/hrms/designations', { limit: 200, is_active: 1 });
   const { data: loginRoles } = useFetch<any>('/hrms/login-roles');
   const debounced = useDebounce(search);
   const params = useMemo(() => ({ page, limit: 20, search: debounced, ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v !== '')) }), [page, debounced, filters]);
@@ -29,14 +31,19 @@ function EmployeesTab() {
   const [detail, setDetail] = useState<any>(null);
   const [deleting, setDeleting] = useState<any>(null);
   const { data: wings } = useFetch<any>('/wings', form.project_id ? { projectId: form.project_id } : undefined);
+  const linkedDesignation = (designations?.data || []).find((row: any) => row.name === form.designation);
+  const effectiveLoginRoleIds = [...new Set([
+    ...login.roleIds,
+    ...(linkedDesignation?.role_id ? [Number(linkedDesignation.role_id)] : []),
+  ])];
 
   const EMPLOYEE_FIELDS: FieldConfig[] = [
     { key: 'employee_code', label: 'Employee code' },
     { key: 'name', label: 'Full name', required: true },
     { key: 'email', label: 'Email', type: 'email' },
     { key: 'phone', label: 'Phone' },
-    { key: 'designation', label: 'Designation' },
-    { key: 'department', label: 'Department' },
+    { key: 'designation', label: 'Designation / role', type: 'select', required: true, options: (designations?.data || []).map((row: any) => ({ value: row.name, label: row.role_name ? `${row.name} · ${row.role_name}` : row.name })) },
+    { key: 'department', label: 'Department', type: 'select', required: true, options: (departments?.data || []).map((row: any) => ({ value: row.name, label: row.name })) },
     { key: 'date_of_joining', label: 'Date of joining', type: 'date' },
     { key: 'date_of_birth', label: 'Date of birth', type: 'date' },
     { key: 'gender', label: 'Gender', type: 'select', options: [{ value: 'male', label: 'Male' }, { value: 'female', label: 'Female' }, { value: 'other', label: 'Other' }] },
@@ -86,8 +93,12 @@ function EmployeesTab() {
       if (!can('users.create')) { toast.push('You need Users → Create permission to provision a login', 'error'); return; }
       if (!form.email) { toast.push('Add an email address for the login', 'error'); return; }
       if (login.password.length < 8) { toast.push('Login password must be at least 8 characters', 'error'); return; }
-      if (!login.roleIds.length) { toast.push('Select at least one login role', 'error'); return; }
+      if (!effectiveLoginRoleIds.length) { toast.push('Select at least one login role or choose a designation linked to a role', 'error'); return; }
       if (edit !== 'new' && edit.user_id) { toast.push('This employee already has a linked login', 'error'); return; }
+    }
+    if (!form.department || !form.designation) {
+      toast.push('Select a department and designation from HRMS master data', 'error');
+      return;
     }
     setSaving(true);
     try {
@@ -96,7 +107,7 @@ function EmployeesTab() {
         if (login.enabled) {
           payload.create_login = true;
           payload.login_password = login.password;
-          payload.login_role_ids = login.roleIds;
+          payload.login_role_ids = effectiveLoginRoleIds;
         }
         await api.post('/hrms/employees', payload);
         toast.push(login.enabled ? 'Employee and login created' : 'Employee added');
@@ -104,7 +115,7 @@ function EmployeesTab() {
         if (login.enabled) {
           payload.create_login = true;
           payload.login_password = login.password;
-          payload.login_role_ids = login.roleIds;
+          payload.login_role_ids = effectiveLoginRoleIds;
         }
         await api.put(`/hrms/employees/${edit.id}`, payload);
         toast.push(login.enabled ? 'Employee updated and login linked' : 'Updated');
@@ -117,7 +128,7 @@ function EmployeesTab() {
   const cols: ColumnConfig<any>[] = [
     { key: 'employee_code', label: 'Code' },
     { key: 'name', label: 'Name', render: (r) => <div style={{ fontWeight: 650 }}>{r.name}</div> },
-    { key: 'designation', label: 'Designation' },
+    { key: 'designation', label: 'Designation', render: (r) => <span>{r.designation}{r.designation_role_name ? <span className="muted"> · {r.designation_role_name}</span> : null}</span> },
     { key: 'department', label: 'Dept' },
     { key: 'project_name', label: 'Project' },
     { key: 'user_name', label: 'Login', render: (r) => r.user_id
@@ -146,7 +157,10 @@ function EmployeesTab() {
         </div>
         <div className="field">
           <label>Department</label>
-          <input className="input" value={filters.department || ''} onChange={(e) => { setFilters((s) => ({ ...s, department: e.target.value })); setPage(1); }} />
+          <select className="input" value={filters.department || ''} onChange={(e) => { setFilters((s) => ({ ...s, department: e.target.value })); setPage(1); }}>
+            <option value="">All departments</option>
+            {(departments?.data || []).map((row: any) => <option key={row.id} value={row.name}>{row.name}</option>)}
+          </select>
         </div>
         <div className="field">
           <label>Status</label>
@@ -196,14 +210,15 @@ function EmployeesTab() {
                 <div className="form-grid">
                   <Field config={{ key: 'login_password', label: 'Temporary password', type: 'password', required: true, hint: 'Minimum 8 characters' }} value={login.password} onChange={(v) => setLogin((s) => ({ ...s, password: v }))} />
                 </div>
-                <label className="field-label" style={{ display: 'block', marginTop: 8 }}>Login role <span className="req">*</span></label>
+                <label className="field-label" style={{ display: 'block', marginTop: 8 }}>Login roles <span className="req">*</span></label>
                 <div className="flex gap-sm" style={{ flexWrap: 'wrap' }}>
                   {(loginRoles || []).map((role: any) => (
-                    <button key={role.id} type="button" className={`btn sm ${login.roleIds.includes(Number(role.id)) ? 'primary' : 'outline'}`} onClick={() => setLogin((s) => ({ ...s, roleIds: s.roleIds.includes(Number(role.id)) ? s.roleIds.filter((id) => id !== Number(role.id)) : [...s.roleIds, Number(role.id)] }))}>
-                      {login.roleIds.includes(Number(role.id)) ? '✓ ' : ''}{role.name}
+                    <button key={role.id} type="button" className={`btn sm ${effectiveLoginRoleIds.includes(Number(role.id)) ? 'primary' : 'outline'}`} onClick={() => setLogin((s) => ({ ...s, roleIds: s.roleIds.includes(Number(role.id)) ? s.roleIds.filter((id) => id !== Number(role.id)) : [...s.roleIds, Number(role.id)] }))}>
+                      {effectiveLoginRoleIds.includes(Number(role.id)) ? '✓ ' : ''}{role.name}
                     </button>
                   ))}
                 </div>
+                {linkedDesignation?.role_name && <div className="form-hint" style={{ marginTop: 8 }}>The <strong>{linkedDesignation.name}</strong> designation automatically includes its linked role: <strong>{linkedDesignation.role_name}</strong>. Other selected roles are retained.</div>}
                 {!loginRoles?.length && <div className="form-hint" style={{ marginTop: 8 }}>No active login roles are available.</div>}
               </div>
             )}
@@ -240,7 +255,7 @@ function EmployeeDetailsModal({ employee, onClose, canEdit, onEdit }: { employee
             <span>Email</span><strong>{employee.email || '—'}</strong>
             <span>Phone</span><strong>{employee.phone || '—'}</strong>
             <span>Department</span><strong>{employee.department || '—'}</strong>
-            <span>Designation</span><strong>{employee.designation || '—'}</strong>
+            <span>Designation</span><strong>{employee.designation || '—'}{employee.designation_role_name ? ` · ${employee.designation_role_name}` : ''}</strong>
             <span>Employment</span><strong>{employee.employment_type || '—'}</strong>
             <span>Joined</span><strong>{fmtDate(employee.date_of_joining)}</strong>
             <span>Project</span><strong>{employee.project_name || '—'}{employee.wing_name ? ` · ${employee.wing_name}` : ''}</strong>

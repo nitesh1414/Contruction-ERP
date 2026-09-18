@@ -91,7 +91,7 @@ function enumCheck(table, t, cols, elements, paramsRef, sql) {
 }
 
 function handleInsert(sql, params) {
-  const m = /INSERT INTO\s+`?(\w+)`?\s*\(([^)]*)\)\s*VALUES\s*([\s\S]*)$/i.exec(sql.trim());
+  const m = /INSERT(?:\s+IGNORE)?\s+INTO\s+`?(\w+)`?\s*\(([^)]*)\)\s*VALUES\s*([\s\S]*)$/i.exec(sql.trim());
   if (!m) { fail(`Unparseable INSERT: ${sql.slice(0, 110)}`); return null; }
   const [, table, colList, rawValuesPart] = m;
   const valuesPart = rawValuesPart.split(/\s+ON DUPLICATE KEY UPDATE\s+/i)[0];
@@ -190,6 +190,20 @@ async function query(sql, params) {
   if (/^SELECT id, code FROM permissions/i.test(s)) {
     stats.selects += 1;
     return [rowsOf('permissions').map((r) => ({ id: r.id, code: r.code })), []];
+  }
+  if (/^SELECT id, name, code FROM roles WHERE is_active = 1/i.test(s)) {
+    stats.selects += 1;
+    return [rowsOf('roles').filter((r) => r.is_active === undefined || r.is_active === 1).map((r) => ({ id: r.id, name: r.name, code: r.code })), []];
+  }
+  if (/^SELECT DISTINCT department AS name FROM hrms_employees/i.test(s)) {
+    stats.selects += 1;
+    const names = [...new Set(rowsOf('hrms_employees').map((r) => r.department).filter((v) => v))];
+    return [names.map((name) => ({ name })), []];
+  }
+  if (/^SELECT DISTINCT designation AS name FROM hrms_employees/i.test(s)) {
+    stats.selects += 1;
+    const names = [...new Set(rowsOf('hrms_employees').map((r) => r.designation).filter((v) => v))];
+    return [names.map((name) => ({ name })), []];
   }
   if (/^SELECT id, wing_id, floor_id, price FROM units WHERE project_id = \? AND unit_number IN/i.test(s)) {
     stats.selects += 1;
