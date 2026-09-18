@@ -113,7 +113,7 @@ Status: `pending | in_progress | completed | delayed`.
 `GET /petty-cash?projectId&txn_type&category&from&to&search` · `GET /petty-cash/summary?projectId` — cash-on-hand, category totals and recent activity · `GET /petty-cash/export` CSV · `POST /petty-cash` `{project_id, txn_type: topup|expense|replenish, amount, txn_date, category?, paid_to?, received_by?, description?, remarks?}` · `POST /petty-cash/topup` (same body with `txn_type` forced to `topup`) · `PUT /petty-cash/:id` · `DELETE /petty-cash/:id`. Entries and summaries are project-scoped.
 
 ## /hrms *(hrms.* perms)*
-`GET /hrms/summary` (includes `totalEmployees`, `linkedLogins`, active/on-leave counts and payroll totals) · `GET /hrms/login-roles` (active roles safe for employee login assignment) · CRUD `/hrms/employees` (filters `projectId`, `department`, `status`, `search`) · `POST /hrms/employees/:id/login`.
+`GET /hrms/summary` (includes `totalEmployees`, `linkedLogins`, active/on-leave counts and payroll totals) · `GET /hrms/login-roles` (active roles safe for employee login assignment) · CRUD `/hrms/employees` (paginated filters `projectId`, `department`, `status`, `is_active`, `employment_type`, `search`) · `POST /hrms/employees/:id/login`. The Admin Console and Project Tracking web app use this same employee directory; an Admin-role user has global project visibility and can create, update and delete employee records.
 
 `POST /hrms/employees` accepts the employee fields plus the optional login workflow. The UI explicitly asks whether credentials are required; when `create_login` is false, an email is not implicitly linked to an unrelated login:
 

@@ -69,7 +69,7 @@ export const listEntries = asyncHandler(async (req, res) => {
   const whereSql = (conditions.length ? `WHERE ${conditions.join(' AND ')}` : 'WHERE 1=1') + scope.clause;
   params.push(...scope.params);
   const rows = await query(
-    `SELECT pce.*, p.name AS project_name, u.name AS created_by_name, pv.file_url AS receipt_url
+    `SELECT pce.*, p.name AS project_name, u.name AS created_by_name, pv.file_path AS receipt_url
        FROM petty_cash_entries pce
        LEFT JOIN projects p ON p.id = pce.project_id
        LEFT JOIN users u ON u.id = pce.created_by

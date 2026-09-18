@@ -47,13 +47,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const can = useCallback((perm: string) => {
     if (!user) return false;
-    if (user.isSuperAdmin) return true;
+    if (user.isSuperAdmin || user.roles.some((role) => role.code === 'admin')) return true;
     return user.permissions.includes(perm);
   }, [user]);
 
   const canAny = useCallback((...perms: string[]) => {
     if (!user) return false;
-    if (user.isSuperAdmin) return true;
+    if (user.isSuperAdmin || user.roles.some((role) => role.code === 'admin')) return true;
     return perms.some((p) => user.permissions.includes(p));
   }, [user]);
 

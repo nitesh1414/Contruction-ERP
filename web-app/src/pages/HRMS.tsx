@@ -158,7 +158,7 @@ function EmployeesTab() {
       </div>
       <div className="card">
         <div className="card-header">
-          <h3>Employees</h3>
+          <div><h3>Employees</h3><span className="muted" style={{ fontSize: 12 }}>Shared directory · {total} total</span></div>
           {can('hrms.create') && <button className="btn primary sm" style={{ marginLeft: 'auto' }} onClick={openNew}>+ Add employee</button>}
         </div>
         <DataTable columns={cols} rows={rows} loading={loading} rowKey="id" onRowClick={openDetails} />

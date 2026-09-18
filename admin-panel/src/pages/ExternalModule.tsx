@@ -14,11 +14,16 @@ type Props = {
 function HrmsAdminView() {
   const { can } = useAuth();
   const { data: summary } = useFetch<any>('/hrms/summary');
-  const { data: employees, loading: employeesLoading } = useFetch<any>('/hrms/employees', { limit: 12, is_active: 1 });
+  const [employeePage, setEmployeePage] = useState(1);
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const { data: employees, loading: employeesLoading } = useFetch<any>('/hrms/employees', {
+    page: employeePage, limit: 20, search: employeeSearch,
+  });
   const { data: leave, loading: leaveLoading, reload: reloadLeave } = useFetch<any>('/hrms/leave-requests', { limit: 8 });
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const { data: payroll, loading: payrollLoading, reload: reloadPayroll } = useFetch<any>('/hrms/payroll', { limit: 8, payroll_month: month });
   const employeeRows = employees?.data || [];
+  const employeeTotal = employees?.pagination?.total ?? 0;
   const leaveRows = leave?.data || [];
   const payrollRows = payroll?.data || [];
   const linkedCount = summary?.linkedLogins ?? employeeRows.filter((employee: any) => employee.user_id).length;
@@ -90,8 +95,12 @@ function HrmsAdminView() {
       </div>
 
       <div className="card" style={{ marginTop: 14 }}>
-        <div className="card-header"><h3>Employee identity & login coverage</h3><span className="muted" style={{ marginLeft: 'auto', fontSize: 12 }}>Leave, salary and payroll use the same employee IDs</span></div>
+        <div className="card-header">
+          <div><h3>Employee identity & login coverage</h3><span className="muted" style={{ fontSize: 12 }}>Shared with the Project Tracking HR & Payroll panel · {employeeTotal} total</span></div>
+          <input className="input" value={employeeSearch} onChange={(event) => { setEmployeeSearch(event.target.value); setEmployeePage(1); }} placeholder="Search employees…" style={{ width: 190, marginLeft: 'auto' }} />
+        </div>
         <DataTable columns={employeeColumns} rows={employeeRows} loading={employeesLoading} rowKey="id" />
+        <PaginationBar page={employeePage} total={employeeTotal} limit={20} onPage={setEmployeePage} />
       </div>
       <div className="grid-2" style={{ marginTop: 14 }}>
         <div className="card">

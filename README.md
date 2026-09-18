@@ -30,6 +30,8 @@ Everything runs against a single **MySQL** database — no MongoDB, no ORM (raw 
 
 **Workforce** — worker master, categories, contractors, labour rates, daily attendance (present / absent / leave / half-day / overtime with auto wage + OT calculation), labour payment generation from attendance, monthly wage report.
 
+**HR & payroll** — one shared employee directory is used by the Admin Console and Project Tracking web app. Admin users can add, update and delete employees, optionally provision linked login credentials, manage leave and salary structures, generate payroll and record payments. Employee identity fields stay synchronized through `hrms_employees.user_id`.
+
 **Billing & sales** — cost entries by category/vendor with payment status, budget-vs-actual, unit sales with GST, staged payments, unit availability, pending collections.
 
 **Documents & drawings** — version-controlled drawings with revision approval, expiring-document alerts.
@@ -83,6 +85,8 @@ npx expo start                # scan the QR code with Expo Go
 | Quality Engineer | `quality@constructionerp.com` | `Password@123` |
 
 > The electrical & plumbing demo users are scoped to specific wings to demonstrate project-level access control. Change all passwords before deploying.
+
+The Admin Console HR & Payroll directory and the Project Tracking web app HR & Payroll panel read and write the same `/api/hrms/employees` records. The web app shows the complete employee population with search, status filters and pagination; an Admin-role user has global project visibility plus employee create, edit and delete access. A login may be created from either the Admin Console Users flow or the web app employee flow only after the operator explicitly confirms that credentials are required.
 
 Verify the backend end-to-end (after `db:setup` + server running):
 

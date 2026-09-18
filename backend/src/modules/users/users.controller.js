@@ -5,7 +5,7 @@ import {
 } from '../../utils/helpers.js';
 import { audit } from '../../utils/audit.js';
 import { sendCsv } from '../../utils/csv.js';
-import { assertProjectAccess } from '../../middleware/permissions.js';
+import { assertProjectAccess, isAdministrator } from '../../middleware/permissions.js';
 
 const USER_COLUMNS = `u.id, u.employee_code, u.name, u.email, u.phone, u.profile_photo, u.status, u.last_login_at, u.created_at,
   (SELECT e.id FROM hrms_employees e WHERE e.user_id = u.id LIMIT 1) AS employee_id,
@@ -105,7 +105,7 @@ async function validateRoleIds(req, roleIds, { required = true } = {}) {
   const placeholders = ids.map(() => '?').join(',');
   const rows = await query(`SELECT id, code FROM roles WHERE is_active = 1 AND id IN (${placeholders})`, ids);
   if (rows.length !== ids.length) throw badRequest('One or more selected roles are invalid or inactive');
-  if (!req.user.isSuperAdmin && rows.some((role) => PROTECTED_ROLE_CODES.has(role.code))) {
+  if (!isAdministrator(req.user) && rows.some((role) => PROTECTED_ROLE_CODES.has(role.code))) {
     throw forbidden('Only an administrator can assign an administrator role');
   }
   return ids;
@@ -179,7 +179,7 @@ export const create = asyncHandler(async (req, res) => {
   const normalizedRoleIds = await validateRoleIds(req, roleIds);
 
   const wantsEmployee = truthy(createEmployee);
-  if (wantsEmployee && !req.user.isSuperAdmin && !req.user.permissions.has('hrms.create')) {
+  if (wantsEmployee && !isAdministrator(req.user) && !req.user.permissions.has('hrms.create')) {
     throw forbidden('HRMS → Create permission is required to create the linked employee record');
   }
   const generatedCode = normalizeCode(employee_code) || `EMP-${Date.now().toString(36).toUpperCase()}`;
