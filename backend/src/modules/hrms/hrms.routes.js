@@ -7,11 +7,27 @@ const router = Router();
 router.use(authenticate, attachProjectScope);
 
 router.get('/summary',         requirePermission('hrms', 'view'),    ctrl.hrmsSummary);
+router.get('/login-roles',     requirePermission('hrms', 'view'),    ctrl.loginRoles);
+
+// HR masters used by the employee directory
+router.get('/departments',        requirePermission('hrms', 'view'),   ctrl.departments.list);
+router.get('/departments/export', requirePermission('hrms', 'export'), ctrl.departments.exportCsv);
+router.get('/departments/:id',    requirePermission('hrms', 'view'),   ctrl.departments.getOne);
+router.post('/departments',       requirePermission('hrms', 'create'), ctrl.departments.create);
+router.put('/departments/:id',    requirePermission('hrms', 'edit'),   ctrl.departments.update);
+router.delete('/departments/:id',requirePermission('hrms', 'delete'),  ctrl.departments.remove);
+router.get('/designations',        requirePermission('hrms', 'view'),   ctrl.designations.list);
+router.get('/designations/export', requirePermission('hrms', 'export'), ctrl.designations.exportCsv);
+router.get('/designations/:id',    requirePermission('hrms', 'view'),   ctrl.designations.getOne);
+router.post('/designations',       requirePermission('hrms', 'create'), ctrl.designations.create);
+router.put('/designations/:id',    requirePermission('hrms', 'edit'),   ctrl.designations.update);
+router.delete('/designations/:id',requirePermission('hrms', 'delete'),  ctrl.designations.remove);
 
 // employees
 router.get('/employees',       requirePermission('hrms', 'view'),    ctrl.listEmployees);
 router.get('/employees/:id',   requirePermission('hrms', 'view'),    ctrl.getEmployee);
 router.post('/employees',      requirePermission('hrms', 'create'),  ctrl.createEmployee);
+router.post('/employees/:id/login', requirePermission('hrms', 'create'), ctrl.createEmployeeLogin);
 router.put('/employees/:id',   requirePermission('hrms', 'edit'),    ctrl.updateEmployee);
 router.delete('/employees/:id',requirePermission('hrms', 'delete'),  ctrl.deleteEmployee);
 
@@ -23,6 +39,7 @@ router.delete('/leave-types/:id', requirePermission('hrms', 'delete'), ctrl.leav
 
 // leave requests
 router.get('/leave-requests',  requirePermission('hrms', 'view'),    ctrl.listLeaveRequests);
+router.get('/leave-balances',  requirePermission('hrms', 'view'),    ctrl.leaveBalances);
 router.post('/leave-requests', requirePermission('hrms', 'create'),  ctrl.createLeaveRequest);
 router.put('/leave-requests/:id/decide', requirePermission('hrms', 'approve'), ctrl.decideLeave);
 

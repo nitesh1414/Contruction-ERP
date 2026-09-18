@@ -37,15 +37,15 @@ export default function Users() {
     setBusy(true);
     try {
       if (isNew) {
-        await api.post('/users', payload);
-        toast.push('User created');
+        const response = await api.post('/users', payload);
+        toast.push(response.data?.meta?.employeeId ? 'User and employee linked' : 'User created');
       } else {
-        const { roleIds, projectAccess, password, ...rest } = payload;
+        const { roleIds, roleIdsChanged, projectAccess, password, ...rest } = payload;
         void password;
-        await api.put(`/users/${payload.id}`, rest);
-        if (Array.isArray(roleIds)) await api.put(`/users/${payload.id}/roles`, { roleIds });
+        const response = await api.put(`/users/${payload.id}`, rest);
+        if (roleIdsChanged && Array.isArray(roleIds)) await api.put(`/users/${payload.id}/roles`, { roleIds });
         if (Array.isArray(projectAccess)) await api.put(`/users/${payload.id}/project-access`, { entries: projectAccess });
-        toast.push('User updated');
+        toast.push(response.data?.meta?.employeeId ? 'User updated and linked to employee' : 'User updated');
       }
       setEditUser(null);
       reload();
@@ -55,10 +55,10 @@ export default function Users() {
   return (
     <div className="card">
       <div className="card-header">
-        <h3>Users</h3>
+        <h3>Users & Employees</h3>
         <div className="actions">
           {can('users.export') && <button className="btn outline sm" onClick={async () => { try { await downloadExport('/users/export', 'users.csv'); } catch (e) { toast.push(errMsg(e), 'error'); } }}>⬇ Export</button>}
-          {can('users.create') && <button className="btn primary sm" onClick={() => { setDetail(null); setEditUser({}); }}>+ New User</button>}
+          {can('users.create') && <button className="btn primary sm" onClick={() => { setDetail(null); setEditUser({}); }}>+ New User / Employee</button>}
         </div>
       </div>
       <div className="filter-bar">
@@ -86,6 +86,9 @@ export default function Users() {
           { key: 'employee_code', label: 'Code', render: (u: any) => <span className="mono">{u.employee_code || '—'}</span> },
           { key: 'phone', label: 'Phone' },
           { key: 'role_names', label: 'Roles', render: (u: any) => (u.role_names || '—').split(', ').filter(Boolean).map((r: string) => <Badge key={r} value="purple" label={r} />).reduce((p: any, c: any) => [p, ' ', c], <span />) },
+          { key: 'employee_id', label: 'HR / Payroll', render: (u: any) => u.employee_id
+            ? <span className="badge green">Linked · {u.linked_employee_code || 'employee'}</span>
+            : <span className="badge gray">No employee</span> },
           { key: 'last_login_at', label: 'Last login', render: (u: any) => (u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : <span className="muted">never</span>) },
           { key: 'status', label: 'Status', render: (u: any) => <Badge value={u.status === 'active' ? 'completed' : 'cancelled'} label={u.status} /> },
           {
@@ -108,8 +111,9 @@ export default function Users() {
           onClose={() => setEditUser(null)}
           onSave={save}
           busy={busy}
-          roles={roles || []}
+          roles={(roles || []).filter((role: any) => me?.isSuperAdmin || !['admin', 'super_admin'].includes(role.code))}
           projects={projects?.data || []}
+          canCreateEmployee={can('hrms.create')}
         />
       )}
 
@@ -133,21 +137,54 @@ export default function Users() {
   );
 }
 
-function UserFormModal({ user, onClose, onSave, busy, roles, projects }: {
-  user: any | null; onClose: () => void; onSave: (payload: any, isNew: boolean) => void; busy: boolean; roles: any[]; projects: any[];
+function UserFormModal({ user, onClose, onSave, busy, roles, projects, canCreateEmployee }: {
+  user: any | null; onClose: () => void; onSave: (payload: any, isNew: boolean) => void; busy: boolean; roles: any[]; projects: any[]; canCreateEmployee: boolean;
 }) {
   const isNew = !user;
   const [form, setForm] = useState<any>({ name: user?.name || '', email: user?.email || '', phone: user?.phone || '', employee_code: user?.employee_code || '', status: user?.status || 'active', password: '' });
   const [roleIds, setRoleIds] = useState<number[]>(user?.roles?.map((r: any) => r.id) || []);
+  const initialRoleIds = user?.roles?.map((r: any) => Number(r.id)).sort((a: number, b: number) => a - b) || [];
+  const [createEmployee, setCreateEmployee] = useState(false);
+  const [employeeForm, setEmployeeForm] = useState<any>({
+    department: '', designation: '', date_of_joining: '', employment_type: 'permanent',
+    status: 'active', project_id: '', wing_id: '',
+  });
   const [access, setAccess] = useState<{ project_id: number | ''; wing_id: number }[]>(
     (user?.projectAccess || []).map((p: any) => ({ project_id: p.project_id, wing_id: p.wing_id ?? 0 }))
   );
   const { data: wings } = useFetch<any>('/wings', access.length ? { projectId: access[0]?.project_id || undefined } : {});
+  const { data: departments } = useFetch<any>('/hrms/departments', { limit: 200, is_active: 1 });
+  const { data: designations } = useFetch<any>('/hrms/designations', { limit: 200, is_active: 1 });
   const toast = useToast();
+  const linkedDesignation = (designations?.data || []).find((row: any) => row.name === employeeForm.designation);
+  const effectiveRoleIds = [...new Set([
+    ...roleIds,
+    ...(linkedDesignation?.role_id ? [Number(linkedDesignation.role_id)] : []),
+  ])];
 
   const submit = () => {
     if (isNew && (!form.password || form.password.length < 8)) { toast.push('Password must be at least 8 characters', 'error'); return; }
-    onSave({ ...form, id: user?.id, roleIds, projectAccess: access.filter((a) => a.project_id) }, isNew);
+    if (isNew && !effectiveRoleIds.length) { toast.push('Select at least one role or choose a designation linked to a role', 'error'); return; }
+    if (createEmployee && (!employeeForm.department || !employeeForm.designation)) {
+      toast.push('Select a department and designation from HRMS master data', 'error');
+      return;
+    }
+    const normalizedRoleIds = [...effectiveRoleIds].sort((a, b) => a - b);
+    const roleIdsChanged = normalizedRoleIds.length !== initialRoleIds.length || normalizedRoleIds.some((id, index) => id !== initialRoleIds[index]);
+    const payload: any = { ...form, id: user?.id, roleIds: normalizedRoleIds, roleIdsChanged, projectAccess: access.filter((a) => a.project_id) };
+    if (createEmployee) {
+      payload.createEmployee = true;
+      payload.employee = {
+        ...employeeForm,
+        employee_code: form.employee_code,
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        project_id: employeeForm.project_id || null,
+        wing_id: employeeForm.wing_id || null,
+      };
+    }
+    onSave(payload, isNew);
   };
 
   return (
@@ -163,19 +200,55 @@ function UserFormModal({ user, onClose, onSave, busy, roles, projects }: {
         <Field config={{ key: 'status', label: 'Status', type: 'select', options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }] }} value={form.status} onChange={(v) => setForm((s: any) => ({ ...s, status: v }))} />
       </div>
 
+      {!user?.employee && (
+        <div className="card" style={{ marginTop: 16, padding: 14, background: 'var(--bg-tint)' }}>
+          <div className="flex" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <strong>{isNew ? 'HR & Payroll link' : 'Convert user to employee'}</strong>
+              <div className="form-hint" style={{ marginTop: 3 }}>
+                {isNew
+                  ? 'Should this user also receive an employee record for leave, salary and payroll?'
+                  : 'This login has no employee record. Convert or link it to the shared HR & Payroll employee directory?'}
+              </div>
+            </div>
+            <label className="check-label">
+              <input type="checkbox" checked={createEmployee} disabled={!canCreateEmployee} onChange={(e) => setCreateEmployee(e.target.checked)} />
+              {isNew ? 'Create employee record' : 'Convert to employee'}
+            </label>
+          </div>
+          {!canCreateEmployee && <div className="form-hint" style={{ marginTop: 8 }}>HRMS → Create permission is required to add the linked payroll employee record.</div>}
+          {createEmployee && (
+            <div className="form-grid" style={{ marginTop: 12 }}>
+              <Field config={{ key: 'department', label: 'Department', type: 'select', required: true, options: (departments?.data || []).map((row: any) => ({ value: row.name, label: row.name })) }} value={employeeForm.department} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, department: v }))} />
+              <Field config={{ key: 'designation', label: 'Designation / role', type: 'select', required: true, options: (designations?.data || []).map((row: any) => ({ value: row.name, label: row.role_name ? `${row.name} · ${row.role_name}` : row.name })) }} value={employeeForm.designation} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, designation: v }))} />
+              <Field config={{ key: 'date_of_joining', label: 'Date of joining', type: 'date' }} value={employeeForm.date_of_joining} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, date_of_joining: v }))} />
+              <Field config={{ key: 'employment_type', label: 'Employment type', type: 'select', options: [{ value: 'permanent', label: 'Permanent' }, { value: 'contract', label: 'Contract' }, { value: 'probation', label: 'Probation' }, { value: 'intern', label: 'Intern' }] }} value={employeeForm.employment_type} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, employment_type: v }))} />
+              <Field config={{ key: 'project_id', label: 'Payroll project', type: 'select', options: projects.map((p: any) => ({ value: p.id, label: `${p.name} · ${p.code}` })) }} value={employeeForm.project_id} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, project_id: v, wing_id: '' }))} />
+              <Field config={{ key: 'status', label: 'Employee status', type: 'select', options: [{ value: 'active', label: 'Active' }, { value: 'on_leave', label: 'On leave' }] }} value={employeeForm.status} onChange={(v) => setEmployeeForm((s: any) => ({ ...s, status: v }))} />
+            </div>
+          )}
+        </div>
+      )}
+      {user?.employee && !isNew && (
+        <div className="form-hint" style={{ color: 'var(--success)', margin: '12px 0' }}>
+          ✓ Linked HR/payroll employee: {user.employee.employee_code} · {user.employee.status}
+        </div>
+      )}
+
       <h3>Roles</h3>
       <div className="flex gap-sm" style={{ flexWrap: 'wrap', marginBottom: 16 }}>
         {roles.map((r: any) => (
           <button
             key={r.id}
             type="button"
-            className={`btn sm ${roleIds.includes(r.id) ? 'primary' : 'outline'}`}
+            className={`btn sm ${effectiveRoleIds.includes(r.id) ? 'primary' : 'outline'}`}
             onClick={() => setRoleIds((s) => s.includes(r.id) ? s.filter((id) => id !== r.id) : [...s, r.id])}
           >
-            {roleIds.includes(r.id) ? '✓ ' : ''}{r.name}
+            {effectiveRoleIds.includes(r.id) ? '✓ ' : ''}{r.name}
           </button>
         ))}
       </div>
+      {linkedDesignation?.role_name && <div className="form-hint" style={{ marginTop: -8, marginBottom: 16 }}>The selected designation <strong>{linkedDesignation.name}</strong> automatically includes <strong>{linkedDesignation.role_name}</strong>. Other selected roles remain independently configurable.</div>}
 
       <h3>Project Access <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>— empty with Super Admin role means all projects</span></h3>
       {access.map((a, idx) => (

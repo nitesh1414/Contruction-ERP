@@ -1,7 +1,48 @@
 import React, { useState } from 'react';
 import CrudPage, { CrudConfig } from '../components/CrudPage';
+import { useAuth } from '../auth/AuthContext';
 
 const TABS: { key: string; label: string; perm?: string; config: CrudConfig }[] = [
+  {
+    key: 'hrms-departments', label: 'Departments', perm: 'hrms.view',
+    config: {
+      title: 'HR Departments', singularLabel: 'Department', endpoint: '/hrms/departments', module: 'hrms',
+      columns: [
+        { key: 'name', label: 'Department', render: (row: any) => <strong>{row.name}</strong> },
+        { key: 'code', label: 'Code', render: (row: any) => <span className="mono">{row.code}</span> },
+        { key: 'description', label: 'Description' },
+        { key: 'is_active', label: 'Active', render: (row: any) => row.is_active ? '✅' : '⛔' },
+      ],
+      fields: () => [
+        { key: 'name', label: 'Department name', type: 'text', required: true },
+        { key: 'code', label: 'Code', type: 'text', hint: 'Leave blank to generate from the name' },
+        { key: 'description', label: 'Description', type: 'text', width: 'full' },
+        { key: 'is_active', label: 'Active', type: 'checkbox' },
+      ],
+      defaults: { is_active: true },
+    },
+  },
+  {
+    key: 'hrms-designations', label: 'Designations / Roles', perm: 'hrms.view',
+    config: {
+      title: 'HR Designations / Roles', singularLabel: 'Designation', endpoint: '/hrms/designations', module: 'hrms',
+      columns: [
+        { key: 'name', label: 'Designation', render: (row: any) => <strong>{row.name}</strong> },
+        { key: 'code', label: 'Code', render: (row: any) => <span className="mono">{row.code}</span> },
+        { key: 'role_name', label: 'Linked role', render: (row: any) => row.role_name || <span className="muted">—</span> },
+        { key: 'description', label: 'Description' },
+        { key: 'is_active', label: 'Active', render: (row: any) => row.is_active ? '✅' : '⛔' },
+      ],
+      fields: () => [
+        { key: 'name', label: 'Designation name', type: 'text', required: true },
+        { key: 'code', label: 'Code', type: 'text', hint: 'Leave blank to generate from the name' },
+        { key: 'role_id', label: 'Role / designation mapping', type: 'select', required: true, optionsEndpoint: '/hrms/login-roles', optionsValueKey: 'id', optionsLabelKey: 'name' },
+        { key: 'description', label: 'Description', type: 'text', width: 'full' },
+        { key: 'is_active', label: 'Active', type: 'checkbox' },
+      ],
+      defaults: { is_active: true },
+    },
+  },
   {
     key: 'material-categories', label: 'Material Categories', perm: 'materials.view',
     config: {
@@ -165,18 +206,21 @@ const TABS: { key: string; label: string; perm?: string; config: CrudConfig }[] 
 ];
 
 export default function Masters() {
+  const { can } = useAuth();
   const [tab, setTab] = useState('material-categories');
-  const active = TABS.find((t) => t.key === tab)!;
+  const visibleTabs = TABS.filter((item) => !item.perm || can(item.perm));
+  const active = visibleTabs.find((item) => item.key === tab) || visibleTabs[0];
+  if (!active) return <div className="empty-state">You do not have permission to view master data.</div>;
   return (
     <>
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="tabs" style={{ padding: '0 10px' }}>
-          {TABS.map((t) => (
-            <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}>{t.label}</button>
+          {visibleTabs.map((item) => (
+            <button key={item.key} className={active.key === item.key ? 'active' : ''} onClick={() => setTab(item.key)}>{item.label}</button>
           ))}
         </div>
       </div>
-      <CrudPage key={tab} config={active.config} />
+      <CrudPage key={active.key} config={active.config} />
     </>
   );
 }

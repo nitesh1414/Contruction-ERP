@@ -5,21 +5,21 @@ import { useAuth } from '../auth/AuthContext';
 const NAV = [
   { to: '/', label: 'Admin Dashboard', icon: '📊', perm: null },
   { section: 'Access Control', tagline: 'Who uses the platform' },
-  { to: '/users', label: 'Users', icon: '👤', perm: 'users.view' },
+  { to: '/users', label: 'Users & Employees', icon: '👤', perm: 'users.view' },
   { to: '/roles', label: 'Roles & Permissions', icon: '🛡️', perm: 'roles.view' },
   { section: 'Master Data', tagline: 'Configure the operating model' },
   { to: '/projects', label: 'Projects & Wings', icon: '🏗️', perm: 'projects.view' },
   { to: '/masters', label: 'Masters', icon: '🗂️', perm: null },
-  { section: 'Back-office modules', tagline: 'Operated from the project-team app' },
+  { section: 'People & finance operations', tagline: 'Identity, HR, payroll and site cash' },
   { to: '/hrms', label: 'HR & Payroll', icon: '🧑‍💼', perm: 'hrms.view' },
-  { to: '/petty-cash', label: 'Petty Cash', icon: '💵', perm: 'hrms.view' },
+  { to: '/petty-cash', label: 'Petty Cash', icon: '💵', perm: 'petty_cash.view' },
   { section: 'System', tagline: 'Watch it all run' },
   { to: '/audit-logs', label: 'Audit Logs', icon: '📜', perm: 'admin.view' },
   { to: '/notifications', label: 'Broadcast', icon: '📣', perm: 'notifications.create' },
 ];
 
 const TITLES: Record<string, string> = {
-  '/': 'Admin Dashboard', '/users': 'User Management', '/roles': 'Roles & Permissions',
+  '/': 'Admin Dashboard', '/users': 'Users & Employees', '/roles': 'Roles & Permissions',
   '/projects': 'Projects & Wings', '/masters': 'Master Data',
   '/hrms': 'HR & Payroll', '/petty-cash': 'Petty Cash',
   '/audit-logs': 'Audit Logs', '/notifications': 'Broadcast Center',

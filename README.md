@@ -30,6 +30,8 @@ Everything runs against a single **MySQL** database — no MongoDB, no ORM (raw 
 
 **Workforce** — worker master, categories, contractors, labour rates, daily attendance (present / absent / leave / half-day / overtime with auto wage + OT calculation), labour payment generation from attendance, monthly wage report.
 
+**HR & payroll** — one shared employee directory is used by the Admin Console and Project Tracking web app. Department and Designation are managed masters; every designation maps to a configurable role, and that linked role is the employee's effective designation during login/profile handling. A user account and its linked employee are the same person: creating either side explicitly offers the operator the other record, existing unlinked users can be converted to employees, and employees can receive or link login credentials. Admin users can add, update and delete employees, manage leave and salary structures, generate payroll and record payments. Shared name, email, phone, employee code and active status stay synchronized through `hrms_employees.user_id`; role permissions remain independently configurable and designation mapping never bypasses RBAC.
+
 **Billing & sales** — cost entries by category/vendor with payment status, budget-vs-actual, unit sales with GST, staged payments, unit availability, pending collections.
 
 **Documents & drawings** — version-controlled drawings with revision approval, expiring-document alerts.
@@ -84,10 +86,12 @@ npx expo start                # scan the QR code with Expo Go
 
 > The electrical & plumbing demo users are scoped to specific wings to demonstrate project-level access control. Change all passwords before deploying.
 
+The Admin Console HR & Payroll directory and the Project Tracking web app HR & Payroll panel read and write the same `/api/hrms/employees` records. The web app shows the complete employee population with search, status filters and pagination; an Admin-role user has global project visibility plus employee create, edit and delete access. A login may be created from either the Admin Console Users flow or the web app employee flow only after the operator explicitly confirms that credentials are required. On an existing installation, run `npm run migrate` followed by `npm run seed` so the new masters are created and legacy employee text values are promoted into managed entries.
+
 Verify the backend end-to-end (after `db:setup` + server running):
 
 ```bash
-cd backend && npm run smoke      # 16 automated checks against a live API + MySQL
+cd backend && npm run smoke      # 17 automated checks against a live API + MySQL
 ```
 
 ---
@@ -132,7 +136,7 @@ Contruction-ERP/
 /api/auth /api/users /api/roles /api/projects /api/wings /api/floors /api/units
 /api/progress /api/milestones /api/drawings /api/materials /api/purchase-orders
 /api/stock /api/billing /api/boq /api/test-reports /api/inspections /api/issues
-/api/workers /api/attendance /api/labour-payments /api/sales /api/documents
+/api/workers /api/attendance /api/labour-payments /api/hrms /api/petty-cash /api/sales /api/documents
 /api/notifications /api/dashboard /api/reports /api/admin /api/files
 ```
 
@@ -148,7 +152,7 @@ mkdir -p .github/workflows && cp docs/ci-workflow.yml .github/workflows/ci.yml
 
 It spins up MySQL 8.0 and runs, on every push:
 
-1. **backend** — syntax check → migrate → seed → boot → 16-point smoke test
+1. **backend** — syntax check → migrate → seed → boot → 17-point smoke test
 2. **web-app** — `tsc` + production build
 3. **admin-panel** — `tsc` + production build
 4. **mobile** — TypeScript type-check

@@ -25,7 +25,7 @@ Tokens: access token (default 12 h) + rotating refresh token (30 d, revocable �
 | POST | `/auth/login` | `{ email, password, deviceInfo? }` → `{ user, accessToken, refreshToken }`. `user` includes `roles[]`, `permissions[]`, `projects[]` (access map) |
 | POST | `/auth/refresh` | `{ refreshToken }` → new token pair (rotation) |
 | POST | `/auth/logout` 🔒 | `{ refreshToken }` — revoke |
-| GET | `/auth/me` 🔒 | current profile incl. roles/permissions/project access |
+| GET | `/auth/me` 🔒 | current profile incl. roles/permissions/project access and a safe linked HR employee summary |
 | PUT | `/auth/profile` 🔒 | `{ name?, phone?, profile_photo? }` |
 | POST | `/auth/change-password` 🔒 | `{ current_password, new_password }` |
 | POST | `/auth/forgot-password` | `{ email }` → issues reset token (link built from `FRONTEND_BASE_URL`) |
@@ -38,19 +38,23 @@ Tokens: access token (default 12 h) + rotating refresh token (30 d, revocable �
 
 | Method | Path | Perm | Description |
 |---|---|---|---|
-| GET | `/users` `?search&status&roleId` | view | list with roles |
+| GET | `/users` `?search&status&roleId` | view | list with roles and `employee_id`, `linked_employee_code`, `employee_status` |
 | GET | `/users/export` | export | CSV |
-| GET | `/users/:id` | view | detail incl. roles + project access |
-| POST | `/users` | create | `{ name, email, password, phone?, employee_code? }` |
-| PUT | `/users/:id` | edit | profile fields + `status` (activate/deactivate) |
-| PUT | `/users/:id/roles` | edit | `{ role_ids: [] }` |
-| PUT | `/users/:id/project-access` | edit | `{ access: [{ project_id, wing_id|null }] }` |
-| PUT | `/users/:id/reset-password` | edit | admin reset `{ new_password }` |
-| DELETE | `/users/:id` | delete | soft deactivate |
+| GET | `/users/:id` | view | detail incl. roles, project access and linked `employee` object |
+| POST | `/users` | create | `{ name, email, password, phone?, employee_code?, roleIds?, projectAccess?, createEmployee?, employee? }` |
+| PUT | `/users/:id` | edit | profile fields + `status` (activate/deactivate); linked employee identity is updated transactionally; pass `createEmployee: true` with optional `employee` fields to convert/link an unlinked user to the shared HR employee record |
+| PUT | `/users/:id/roles` | edit | `{ roleIds: [] }` |
+| PUT | `/users/:id/project-access` | edit | `{ entries: [{ project_id, wing_id|null }] }` |
+| PUT | `/users/:id/reset-password` | edit | admin reset `{ newPassword }` |
+| DELETE | `/users/:id` | delete | delete login; linked HR employee is retained with `user_id = NULL` |
+
+When `createEmployee` is true, `employee` may contain `employee_code`, `department`, `designation`, `date_of_joining`, `employment_type`, `status`, `project_id`, `wing_id`, bank/tax fields and remarks. The user is inserted, roles/project access are assigned, and the employee is inserted or linked in one transaction. An existing unlinked employee with the same employee code or email is linked instead of duplicated. Project scope is checked for every employee/project assignment.
 
 ## /roles *(roles.* perms)*
 
-`GET /roles/permissions` (grouped permission catalog) · `GET /roles` · `GET /roles/:id` (with permission ids) · `POST /roles` `{name, code?, description?}` · `PUT /roles/:id` · `PUT /roles/:id/permissions` `{permission_ids: []}` · `DELETE /roles/:id` (custom roles only).
+`GET /roles/permissions` (grouped permission catalog) · `GET /roles` (includes the linked HR designation, when present) · `GET /roles/:id` (with permission ids) · `POST /roles` `{name, code?, description?}` · `PUT /roles/:id` · `PUT /roles/:id/permissions` `{permission_ids: []}` · `DELETE /roles/:id` (custom roles only).
+
+Designation linkage is managed through the HRMS masters below. A designation has one active role mapping, while a role's permissions remain independently editable here; the mapping never grants permissions outside the linked role's configured permission set.
 
 ## /projects · /wings · /floors · /units
 
@@ -106,6 +110,36 @@ Status: `pending | in_progress | completed | delayed`.
 
 ## /boq
 `GET /boq?projectId` · `POST /boq` `{project_id, title, tax_percent?, discount?}` · `GET /boq/:id` (header + items + totals) · `PUT /boq/:id` · `DELETE /boq/:id` · `PUT /boq/items/:itemId` `{quantity?, rate?, actual_quantity?, actual_rate?}` — estimated & actual amounts and **quantity / cost / % variances** recomputed server-side · `POST /boq/:id/import-json` `{items:[…]}` bulk import · `GET /boq/template-csv` blank CSV template · `GET /boq/:id/export` CSV · `GET /boq/export?projectId` all BOQs CSV · CRUD `/boq/categories`.
+
+## /petty-cash *(petty_cash.* perms)*
+`GET /petty-cash?projectId&txn_type&category&from&to&search` · `GET /petty-cash/summary?projectId` — cash-on-hand, category totals and recent activity · `GET /petty-cash/export` CSV · `POST /petty-cash` `{project_id, txn_type: topup|expense|replenish, amount, txn_date, category?, paid_to?, received_by?, description?, remarks?}` · `POST /petty-cash/topup` (same body with `txn_type` forced to `topup`) · `PUT /petty-cash/:id` · `DELETE /petty-cash/:id`. Entries and summaries are project-scoped.
+
+## /hrms *(hrms.* perms)*
+`GET /hrms/summary` (includes `totalEmployees`, `linkedLogins`, active/on-leave counts and payroll totals) · `GET /hrms/login-roles` (active roles safe for employee login assignment) · CRUD `/hrms/departments` · CRUD `/hrms/designations` · CRUD `/hrms/employees` (paginated filters `projectId`, `department`, `status`, `is_active`, `employment_type`, `search`) · `POST /hrms/employees/:id/login`.
+
+Department and designation are master-backed employee fields. `GET /hrms/departments?is_active=1` returns selectable department records. `GET /hrms/designations?is_active=1` returns selectable designation records with `role_name` and `role_code`; create/update designation bodies require an active `role_id`, and multiple designations may share a role's permission profile. Employee create/edit and user conversion reject arbitrary or inactive department/designation names. Seed/migration promotes legacy non-empty employee text values into the masters so existing directory records remain usable; an unmatched legacy designation receives an empty custom role that administrators can configure separately.
+
+The linked role is the employee's effective designation in login/profile workflows: login provisioning automatically includes the designation's role, and a linked user receives that role when the employee is converted or its designation is changed. Explicit login roles are retained. Permission checks still use the role-permission matrix, so designation linkage does not grant administrator-wide access or bypass configurable RBAC. The Admin Console and Project Tracking web app use this same employee directory; an Admin-role user has global project visibility and can create, update and delete employee records.
+
+`POST /hrms/employees` accepts the employee fields plus the optional login workflow. The UI explicitly asks whether credentials are required; when `create_login` is false, an email is not implicitly linked to an unrelated login:
+
+```json
+{
+  "employee_code": "EMP-104",
+  "name": "Asha Rao",
+  "email": "asha@example.com",
+  "department": "Finance & Accounts",
+  "designation": "Accountant",
+  "project_id": 12,
+  "create_login": true,
+  "login_password": "temporary-secret",
+  "login_role_ids": [4]
+}
+```
+
+`create_login` requires `users.create`, an email, an eight-character password and at least one active role. The employee and new `users` row, role links and `hrms_employees.user_id` link are committed transactionally. If the email already belongs to an unlinked user, that login is linked rather than duplicated. `POST /hrms/employees/:id/login` accepts `{ password, roleIds }` for adding access to an existing unlinked employee. A login already linked to another employee, duplicate email, or duplicate employee code returns a conflict. The database unique key `uq_hrms_employee_user` also prevents one user from being linked twice. Updating either side synchronizes the shared name, email, phone and employee code fields in a transaction; deactivated/terminated employees disable their linked login.
+
+The remaining workflows are CRUD `/hrms/leave-types` · `GET/POST /hrms/leave-requests` · `GET /hrms/leave-balances?employeeId&year` · `PUT /hrms/leave-requests/:id/decide` `{status: approved|rejected|cancelled, remarks?}` · `GET/POST/PUT/DELETE /hrms/salary-structures` (PUT updates the requested structure id and prevents duplicate employee/effective-date rows) · `GET /hrms/payroll?payroll_month=YYYY-MM` · `GET /hrms/payroll/:id` · `POST /hrms/payroll/generate` / `generate-bulk` · `PUT /hrms/payroll/:id/payment` `{paid_amount, payment_date?, payment_reference?}`. Leave requests validate dates, overlapping requests and configured quotas. Payroll is generated from the salary structure effective for the selected month and unpaid approved leave; payment status is calculated from the paid amount and cannot be set inconsistently. All project-linked records respect project scope.
 
 ## Quality
 

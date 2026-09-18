@@ -28,6 +28,7 @@ export default function Roles() {
         columns={[
           { key: 'name', label: 'Role', render: (r: any) => <div><div style={{ fontWeight: 650 }}>{r.name}</div><div className="muted mono" style={{ fontSize: 11 }}>{r.code}</div></div> },
           { key: 'description', label: 'Description' },
+          { key: 'designation_name', label: 'HR designation(s)', render: (r: any) => r.designation_name || <span className="muted">Not linked</span> },
           { key: 'user_count', label: 'Users', align: 'right' },
           { key: 'permission_count', label: 'Permissions', align: 'right', render: (r: any) => <Badge value="purple" label={String(r.permission_count)} /> },
           { key: 'is_system', label: 'Type', render: (r: any) => <Badge value={r.is_system ? 'blue' : 'gray'} label={r.is_system ? 'System' : 'Custom'} /> },
@@ -143,8 +144,8 @@ function PermissionMatrixModal({ role, onClose, onSaved }: { role: any; onClose:
         <button className="btn primary" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save permissions'}</button>
       </>}>
       {loading ? <div className="spinner-wrap"><div className="spinner" /></div> : (
-        <div className="table-wrap" style={{ maxHeight: '62vh', overflowY: 'auto' }}>
-          <table className="data">
+        <div className="table-responsive table-wrap" style={{ maxHeight: '62vh', overflowY: 'auto' }}>
+          <table className="table table-striped table-hover data">
             <thead>
               <tr>
                 <th style={{ position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>Module</th>

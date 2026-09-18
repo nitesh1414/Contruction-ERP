@@ -32,15 +32,21 @@ export function requireAnyPermission(...codes) {
  * Attaches req.projectScope = null | Set<number>
  *   req.wingScope = Map<projectId, Set<wingId>> (empty set = all wings)
  */
-export async function loadProjectScope(userId, isSuperAdmin) {
-  if (isSuperAdmin) return { projectScope: null, wingScope: new Map() };
+export async function loadProjectScope(userId, isGlobalAdmin) {
+  if (isGlobalAdmin) return { projectScope: null, wingScope: new Map() };
   const rows = await query('SELECT project_id, wing_id FROM user_projects WHERE user_id = ?', [userId]);
   if (rows.length === 0) return { projectScope: new Set(), wingScope: new Map() };
   const projectScope = new Set(rows.map((r) => r.project_id));
   const wingScope = new Map();
   for (const r of rows) {
+    if (Number(r.wing_id) === 0) {
+      // A project-level row grants all wings, even if a narrower row also exists.
+      wingScope.set(r.project_id, null);
+      continue;
+    }
+    if (wingScope.get(r.project_id) === null) continue;
     if (!wingScope.has(r.project_id)) wingScope.set(r.project_id, new Set());
-    if (r.wing_id !== 0) wingScope.get(r.project_id).add(r.wing_id);
+    wingScope.get(r.project_id).add(r.wing_id);
   }
   return { projectScope, wingScope };
 }
@@ -64,7 +70,8 @@ export function assertProjectAccess(req, projectId, wingId = null) {
 /** Middleware that attaches project scope to the request (after authenticate). */
 export const attachProjectScope = async (req, _res, next) => {
   try {
-    const { projectScope, wingScope } = await loadProjectScope(req.user.id, req.user.isSuperAdmin);
+    const isGlobalAdmin = req.user.isSuperAdmin || req.user.roles?.some((role) => role.code === 'admin');
+    const { projectScope, wingScope } = await loadProjectScope(req.user.id, isGlobalAdmin);
     req.projectScope = projectScope;
     req.wingScope = wingScope;
     next();
@@ -73,10 +80,24 @@ export const attachProjectScope = async (req, _res, next) => {
   }
 };
 
-/** SQL fragment limiting a WHERE clause to the user's assigned projects. */
-export function projectScopeSql(req, column = 'project_id') {
+/** SQL fragment limiting a WHERE clause to assigned projects and, optionally, wings. */
+export function projectScopeSql(req, column = 'project_id', wingColumn = null) {
   if (req.user.isSuperAdmin || req.projectScope === null) return { clause: '', params: [] };
   if (req.projectScope.size === 0) return { clause: ' AND 1=0 ', params: [] };
   const ids = [...req.projectScope];
-  return { clause: ` AND ${column} IN (${ids.map(() => '?').join(',')}) `, params: ids };
+  if (!wingColumn) return { clause: ` AND ${column} IN (${ids.map(() => '?').join(',')}) `, params: ids };
+  const parts = [];
+  const params = [];
+  for (const projectId of ids) {
+    const wings = req.wingScope?.get(Number(projectId));
+    if (!wings || wings.size === 0) {
+      parts.push(`${column} = ?`);
+      params.push(projectId);
+    } else {
+      const wingIds = [...wings];
+      parts.push(`(${column} = ? AND (${wingColumn} IS NULL OR ${wingColumn} IN (${wingIds.map(() => '?').join(',')})))`);
+      params.push(projectId, ...wingIds);
+    }
+  }
+  return { clause: ` AND (${parts.join(' OR ')}) `, params };
 }

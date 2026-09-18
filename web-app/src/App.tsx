@@ -19,6 +19,8 @@ import Billing from './pages/Billing';
 import Quality from './pages/Quality';
 import Issues from './pages/Issues';
 import Workforce from './pages/Workforce';
+import HRMS from './pages/HRMS';
+import PettyCash from './pages/PettyCash';
 import SalesPage from './pages/SalesPage';
 import Documents from './pages/Documents';
 import Reports from './pages/Reports';
@@ -73,6 +75,8 @@ export default function App() {
       <Route path="/test-reports" element={<RequireAuth><Layout><RequirePermission perm="test_reports.view"><Quality tab="tests" /></RequirePermission></Layout></RequireAuth>} />
       <Route path="/issues" element={<RequireAuth><Layout><RequirePermission perm="issues.view"><Issues /></RequirePermission></Layout></RequireAuth>} />
       <Route path="/workforce" element={<RequireAuth><Layout><RequirePermission perm="workers.view"><Workforce /></RequirePermission></Layout></RequireAuth>} />
+      <Route path="/hrms" element={<RequireAuth><Layout><RequirePermission perm="hrms.view"><HRMS /></RequirePermission></Layout></RequireAuth>} />
+      <Route path="/petty-cash" element={<RequireAuth><Layout><RequirePermission perm="petty_cash.view"><PettyCash /></RequirePermission></Layout></RequireAuth>} />
       <Route path="/sales" element={<RequireAuth><Layout><RequirePermission perm="sales.view"><SalesPage /></RequirePermission></Layout></RequireAuth>} />
       <Route path="/documents" element={<RequireAuth><Layout><RequirePermission perm="documents.view"><Documents /></RequirePermission></Layout></RequireAuth>} />
       <Route path="/reports" element={<RequireAuth><Layout><RequirePermission perm="reports.view"><Reports /></RequirePermission></Layout></RequireAuth>} />

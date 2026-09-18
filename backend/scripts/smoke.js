@@ -59,6 +59,16 @@ async function main() {
     assert(r.status === 200 && r.data?.data?.email === ADMIN_EMAIL, `got ${r.status}`);
   });
 
+  await check('HR organization masters', async () => {
+    const [departments, designations] = await Promise.all([
+      api('GET', '/api/hrms/departments?is_active=1'),
+      api('GET', '/api/hrms/designations?is_active=1'),
+    ]);
+    assert(departments.status === 200 && Array.isArray(departments.data?.data) && departments.data.data.length > 0, `departments: ${departments.status}`);
+    assert(designations.status === 200 && Array.isArray(designations.data?.data) && designations.data.data.length > 0, `designations: ${designations.status}`);
+    assert(designations.data.data.some((row) => row.role_id), 'expected a role-linked designation');
+  });
+
   await check('list projects', async () => {
     const r = await api('GET', '/api/projects');
     assert(r.status === 200 && Array.isArray(r.data?.data), `got ${r.status}`);
