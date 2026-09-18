@@ -310,6 +310,8 @@ export const update = asyncHandler(async (req, res) => {
   const desiredUserStatus = data.status !== undefined ? data.status : existing.status;
   let employeeData = null;
   let employeeInput = {};
+  let designationRoleId = null;
+  let designationRoleIds = [];
   if (wantsEmployee) {
     if (!req.user.isSuperAdmin && !req.user.permissions.has('hrms.create')) {
       throw forbidden('HRMS → Create permission is required to create the linked employee record');
@@ -334,8 +336,8 @@ export const update = asyncHandler(async (req, res) => {
     employeeData.phone = data.phone !== undefined ? data.phone : existing.phone;
     data.employee_code = employeeData.employee_code;
     await validateEmployeeMasterValues(employeeData);
-    const designationRoleId = await getDesignationRoleId(employeeData.designation);
-    const designationRoleIds = await validateRoleIds(req, designationRoleId ? [designationRoleId] : [], { required: false });
+    designationRoleId = await getDesignationRoleId(employeeData.designation);
+    designationRoleIds = await validateRoleIds(req, designationRoleId ? [designationRoleId] : [], { required: false });
     if (employeeData.employee_code.length > 30) throw badRequest('employee_code must be at most 30 characters for a user login');
     if (desiredUserStatus === 'inactive' && employeeInput.is_active === undefined) employeeData.is_active = 0;
     if (employeeData.project_id) assertProjectAccess(req, Number(employeeData.project_id), employeeData.wing_id ? Number(employeeData.wing_id) : null);
