@@ -37,15 +37,15 @@ export default function Users() {
     setBusy(true);
     try {
       if (isNew) {
-        await api.post('/users', payload);
-        toast.push('User created');
+        const response = await api.post('/users', payload);
+        toast.push(response.data?.meta?.employeeId ? 'User and employee linked' : 'User created');
       } else {
         const { roleIds, roleIdsChanged, projectAccess, password, ...rest } = payload;
         void password;
-        await api.put(`/users/${payload.id}`, rest);
+        const response = await api.put(`/users/${payload.id}`, rest);
         if (roleIdsChanged && Array.isArray(roleIds)) await api.put(`/users/${payload.id}/roles`, { roleIds });
         if (Array.isArray(projectAccess)) await api.put(`/users/${payload.id}/project-access`, { entries: projectAccess });
-        toast.push('User updated');
+        toast.push(response.data?.meta?.employeeId ? 'User updated and linked to employee' : 'User updated');
       }
       setEditUser(null);
       reload();
@@ -55,10 +55,10 @@ export default function Users() {
   return (
     <div className="card">
       <div className="card-header">
-        <h3>Users</h3>
+        <h3>Users & Employees</h3>
         <div className="actions">
           {can('users.export') && <button className="btn outline sm" onClick={async () => { try { await downloadExport('/users/export', 'users.csv'); } catch (e) { toast.push(errMsg(e), 'error'); } }}>⬇ Export</button>}
-          {can('users.create') && <button className="btn primary sm" onClick={() => { setDetail(null); setEditUser({}); }}>+ New User</button>}
+          {can('users.create') && <button className="btn primary sm" onClick={() => { setDetail(null); setEditUser({}); }}>+ New User / Employee</button>}
         </div>
       </div>
       <div className="filter-bar">
@@ -161,7 +161,7 @@ function UserFormModal({ user, onClose, onSave, busy, roles, projects, canCreate
     const normalizedRoleIds = [...roleIds].sort((a, b) => a - b);
     const roleIdsChanged = normalizedRoleIds.length !== initialRoleIds.length || normalizedRoleIds.some((id, index) => id !== initialRoleIds[index]);
     const payload: any = { ...form, id: user?.id, roleIds, roleIdsChanged, projectAccess: access.filter((a) => a.project_id) };
-    if (isNew && createEmployee) {
+    if (createEmployee) {
       payload.createEmployee = true;
       payload.employee = {
         ...employeeForm,
@@ -189,16 +189,20 @@ function UserFormModal({ user, onClose, onSave, busy, roles, projects, canCreate
         <Field config={{ key: 'status', label: 'Status', type: 'select', options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }] }} value={form.status} onChange={(v) => setForm((s: any) => ({ ...s, status: v }))} />
       </div>
 
-      {isNew && (
+      {!user?.employee && (
         <div className="card" style={{ marginTop: 16, padding: 14, background: 'var(--bg-tint)' }}>
           <div className="flex" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
             <div>
-              <strong>HR & Payroll link</strong>
-              <div className="form-hint" style={{ marginTop: 3 }}>Should this user also receive an employee record for leave, salary and payroll?</div>
+              <strong>{isNew ? 'HR & Payroll link' : 'Convert user to employee'}</strong>
+              <div className="form-hint" style={{ marginTop: 3 }}>
+                {isNew
+                  ? 'Should this user also receive an employee record for leave, salary and payroll?'
+                  : 'This login has no employee record. Convert or link it to the shared HR & Payroll employee directory?'}
+              </div>
             </div>
             <label className="check-label">
               <input type="checkbox" checked={createEmployee} disabled={!canCreateEmployee} onChange={(e) => setCreateEmployee(e.target.checked)} />
-              Create employee record
+              {isNew ? 'Create employee record' : 'Convert to employee'}
             </label>
           </div>
           {!canCreateEmployee && <div className="form-hint" style={{ marginTop: 8 }}>HRMS → Create permission is required to add the linked payroll employee record.</div>}

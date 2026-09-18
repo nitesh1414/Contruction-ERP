@@ -149,7 +149,7 @@ async function findEmployeeConflict(conn, employee) {
   if (employee.email) { clauses.push('email = ?'); params.push(employee.email); }
   if (!clauses.length) return null;
   const [rows] = await conn.query(
-    `SELECT id, user_id, employee_code, email FROM hrms_employees WHERE ${clauses.join(' OR ')} FOR UPDATE`, params
+    `SELECT id, user_id, employee_code, email, project_id, wing_id FROM hrms_employees WHERE ${clauses.join(' OR ')} FOR UPDATE`, params
   );
   const ids = [...new Set(rows.map((row) => Number(row.id)))];
   if (ids.length > 1) throw conflict('Employee code and email belong to different employee records');
@@ -185,6 +185,7 @@ export const create = asyncHandler(async (req, res) => {
   const generatedCode = normalizeCode(employee_code) || `EMP-${Date.now().toString(36).toUpperCase()}`;
   const employee = wantsEmployee ? buildEmployeeFromUser({ ...req.body, email }, generatedCode) : null;
   if (employee && !employee.name) throw badRequest('employee name is required');
+  if (employee && status === 'inactive' && (!req.body.employee || req.body.employee.is_active === undefined)) employee.is_active = 0;
   if ((employee?.employee_code || normalizeCode(employee_code))?.length > 30) throw badRequest('employee_code must be at most 30 characters for a user login');
   if (employee?.email === null) employee.email = email;
   if (employee?.project_id) assertProjectAccess(req, Number(employee.project_id), employee.wing_id ? Number(employee.wing_id) : null);
@@ -207,6 +208,7 @@ export const create = asyncHandler(async (req, res) => {
     result = await withTransaction(async (conn) => {
       await assertUniqueUserFields(conn, { email, employeeCode: employee?.employee_code || normalizeCode(employee_code) });
       const employeeMatch = employee ? await findEmployeeConflict(conn, employee) : null;
+      if (employeeMatch?.project_id) assertProjectAccess(req, Number(employeeMatch.project_id), employeeMatch.wing_id ? Number(employeeMatch.wing_id) : null);
       if (employeeMatch?.user_id) {
         throw conflict('An employee with this code or email is already linked to another user');
       }
@@ -229,12 +231,12 @@ export const create = asyncHandler(async (req, res) => {
         employeeId = employeeMatch?.id || null;
         if (employeeMatch) {
           await conn.query(
-            `UPDATE hrms_employees SET user_id = ?, employee_code = ?, name = ?, email = ?, phone = ?,
+            `UPDATE hrms_employees SET user_id = ?, employee_code = ?, name = ?, email = ?, phone = ?, is_active = ?,
                department = COALESCE(?, department), designation = COALESCE(?, designation),
                project_id = COALESCE(?, project_id), wing_id = COALESCE(?, wing_id)
              WHERE id = ?`,
-            [userId, employee.employee_code, employee.name, employee.email, employee.phone, employee.department,
-              employee.designation, employee.project_id, employee.wing_id, employeeId]
+            [userId, employee.employee_code, employee.name, employee.email, employee.phone, employee.is_active,
+              employee.department, employee.designation, employee.project_id, employee.wing_id, employeeId]
           );
         } else {
           const keys = Object.keys(employee);
@@ -244,6 +246,12 @@ export const create = asyncHandler(async (req, res) => {
           );
           employeeId = employeeResult.insertId;
           employeeCreated = true;
+        }
+        const linkedProjectId = employee.project_id || employeeMatch?.project_id;
+        const linkedWingId = employee.wing_id || employeeMatch?.wing_id;
+        if (linkedProjectId) {
+          await conn.query('INSERT IGNORE INTO user_projects (user_id, project_id, wing_id) VALUES (?,?,?)',
+            [userId, linkedProjectId, linkedWingId || 0]);
         }
       }
       return { userId, employeeId, employeeCreated };
@@ -259,14 +267,21 @@ export const create = asyncHandler(async (req, res) => {
   const linkedEmployee = result.employeeId
     ? await queryOne('SELECT * FROM hrms_employees WHERE id = ?', [result.employeeId])
     : null;
-  res.status(201).json({ success: true, data: { ...user, employee: linkedEmployee }, meta: { employeeCreated: result.employeeCreated } });
+  res.status(201).json({
+    success: true,
+    data: { ...user, employee: linkedEmployee },
+    meta: { employeeId: result.employeeId, employeeCreated: result.employeeCreated },
+  });
 });
 
 export const update = asyncHandler(async (req, res) => {
   const existing = await queryOne('SELECT id, employee_code, email, name, phone, status, profile_photo FROM users WHERE id = ?', [req.params.id]);
   if (!existing) throw notFound('User not found');
   await assertUserScope(req, req.params.id);
-  const linkedEmployee = await queryOne('SELECT id, employee_code, project_id, wing_id FROM hrms_employees WHERE user_id = ?', [req.params.id]);
+  const linkedEmployee = await queryOne(
+    'SELECT id, employee_code, project_id, wing_id, status, is_active FROM hrms_employees WHERE user_id = ?',
+    [req.params.id]
+  );
   if (linkedEmployee) assertProjectAccess(req, linkedEmployee.project_id ? Number(linkedEmployee.project_id) : null, linkedEmployee.wing_id ? Number(linkedEmployee.wing_id) : null);
 
   const data = {};
@@ -285,11 +300,46 @@ export const update = asyncHandler(async (req, res) => {
     data.status = req.body.status;
   }
   if (req.body.profile_photo !== undefined) data.profile_photo = nullify(req.body.profile_photo);
-  if (!Object.keys(data).length) return res.json({ success: true, data: await queryOne(`SELECT ${USER_COLUMNS} FROM users u WHERE u.id = ?`, [req.params.id]) });
+
+  const wantsEmployee = truthy(req.body.createEmployee) && !linkedEmployee;
+  const desiredUserStatus = data.status !== undefined ? data.status : existing.status;
+  let employeeData = null;
+  let employeeInput = {};
+  if (wantsEmployee) {
+    if (!req.user.isSuperAdmin && !req.user.permissions.has('hrms.create')) {
+      throw forbidden('HRMS → Create permission is required to create the linked employee record');
+    }
+    employeeInput = req.body.employee && typeof req.body.employee === 'object' ? req.body.employee : {};
+    const generatedCode = normalizeCode(existing.employee_code || data.employee_code) || `EMP-${Date.now().toString(36).toUpperCase()}`;
+    employeeData = buildEmployeeFromUser({
+      ...req.body,
+      employee: {
+        ...employeeInput,
+        employee_code: employeeInput.employee_code || data.employee_code || existing.employee_code,
+        name: employeeInput.name || data.name || existing.name,
+        email: employeeInput.email !== undefined ? employeeInput.email : (data.email !== undefined ? data.email : existing.email),
+        phone: employeeInput.phone !== undefined ? employeeInput.phone : (data.phone !== undefined ? data.phone : existing.phone),
+      },
+    }, generatedCode);
+    // The user account is the identity source for the shared login fields. Do not
+    // let a nested employee payload create a second name, email, phone or code.
+    employeeData.employee_code = normalizeCode(data.employee_code || existing.employee_code || employeeData.employee_code);
+    employeeData.name = data.name !== undefined ? data.name : existing.name;
+    employeeData.email = data.email !== undefined ? data.email : existing.email;
+    employeeData.phone = data.phone !== undefined ? data.phone : existing.phone;
+    data.employee_code = employeeData.employee_code;
+    if (employeeData.employee_code.length > 30) throw badRequest('employee_code must be at most 30 characters for a user login');
+    if (desiredUserStatus === 'inactive' && employeeInput.is_active === undefined) employeeData.is_active = 0;
+    if (employeeData.project_id) assertProjectAccess(req, Number(employeeData.project_id), employeeData.wing_id ? Number(employeeData.wing_id) : null);
+  }
+  if (!Object.keys(data).length && !employeeData) {
+    return res.json({ success: true, data: await queryOne(`SELECT ${USER_COLUMNS} FROM users u WHERE u.id = ?`, [req.params.id]) });
+  }
 
   const effectiveCode = data.employee_code !== undefined ? data.employee_code : existing.employee_code;
   if (effectiveCode && effectiveCode.length > 30) throw badRequest('employee_code must be at most 30 characters for a user login');
   if (linkedEmployee && !effectiveCode) throw badRequest('A linked employee must have an employee code');
+  let employeeLinkMeta = null;
   try {
     await withTransaction(async (conn) => {
       await assertUniqueUserFields(conn, { email: data.email !== undefined ? data.email : existing.email, employeeCode: effectiveCode, ignoreId: req.params.id });
@@ -301,14 +351,55 @@ export const update = asyncHandler(async (req, res) => {
         const [employeeEmailRows] = await conn.query('SELECT id FROM hrms_employees WHERE email = ? AND id <> ? LIMIT 1 FOR UPDATE', [data.email, linkedEmployee.id]);
         if (employeeEmailRows[0]) throw conflict('An employee with this email already exists');
       }
+      if (employeeData) {
+        const employeeMatch = await findEmployeeConflict(conn, employeeData);
+        if (employeeMatch?.project_id) assertProjectAccess(req, Number(employeeMatch.project_id), employeeMatch.wing_id ? Number(employeeMatch.wing_id) : null);
+        if (employeeMatch?.user_id) throw conflict('An employee with this code or email is already linked to another user');
+        let employeeId = employeeMatch?.id || null;
+        if (employeeMatch) {
+          const employeeUpdates = {
+            user_id: Number(req.params.id),
+            employee_code: employeeData.employee_code,
+            name: employeeData.name,
+            email: employeeData.email,
+            phone: employeeData.phone,
+            is_active: employeeInput.is_active === undefined ? (desiredUserStatus === 'active' ? 1 : 0) : employeeData.is_active,
+          };
+          for (const field of ['date_of_birth', 'date_of_joining', 'department', 'designation', 'project_id', 'wing_id',
+            'bank_account', 'pan_number', 'aadhaar_number', 'address', 'gender', 'employment_type', 'status', 'remarks']) {
+            if (employeeInput[field] !== undefined && employeeInput[field] !== '') employeeUpdates[field] = employeeData[field];
+          }
+          const employeeKeys = Object.keys(employeeUpdates);
+          await conn.query(`UPDATE hrms_employees SET ${employeeKeys.map((key) => `${key} = ?`).join(', ')} WHERE id = ?`,
+            [...employeeKeys.map((key) => employeeUpdates[key]), employeeMatch.id]);
+        } else {
+          const keys = Object.keys(employeeData);
+          const [employeeResult] = await conn.query(
+            `INSERT INTO hrms_employees (${keys.join(',')}, user_id)
+             VALUES (${keys.map(() => '?').join(',')}, ?)`, [...keys.map((key) => employeeData[key]), req.params.id]
+          );
+          employeeId = employeeResult.insertId;
+        }
+        const linkedProjectId = employeeData.project_id || employeeMatch?.project_id;
+        const linkedWingId = employeeData.wing_id || employeeMatch?.wing_id;
+        if (linkedProjectId) {
+          await conn.query('INSERT IGNORE INTO user_projects (user_id, project_id, wing_id) VALUES (?,?,?)',
+            [req.params.id, linkedProjectId, linkedWingId || 0]);
+        }
+        employeeLinkMeta = { employeeId, created: !employeeMatch };
+      }
+
       const userKeys = Object.keys(data);
-      await conn.query(`UPDATE users SET ${userKeys.map((key) => `${key} = ?`).join(', ')} WHERE id = ?`,
-        [...userKeys.map((key) => data[key]), req.params.id]);
+      if (userKeys.length) {
+        await conn.query(`UPDATE users SET ${userKeys.map((key) => `${key} = ?`).join(', ')} WHERE id = ?`,
+          [...userKeys.map((key) => data[key]), req.params.id]);
+      }
       if (linkedEmployee) {
         const employeeData = {};
         for (const key of ['employee_code', 'name', 'email', 'phone']) {
           if (data[key] !== undefined) employeeData[key] = data[key];
         }
+        if (data.status !== undefined) employeeData.is_active = data.status === 'active' ? 1 : 0;
         const employeeKeys = Object.keys(employeeData);
         if (employeeKeys.length) {
           await conn.query(`UPDATE hrms_employees SET ${employeeKeys.map((key) => `${key} = ?`).join(', ')} WHERE id = ?`,
@@ -319,9 +410,15 @@ export const update = asyncHandler(async (req, res) => {
   } catch (error) {
     duplicateConflict(error, 'The email or employee code is already in use');
   }
-  await audit(req, { action: 'update', module: 'users', recordId: req.params.id, oldValue: existing, newValue: data });
+  await audit(req, {
+    action: 'update', module: 'users', recordId: req.params.id,
+    oldValue: existing, newValue: { ...data, employee_link: employeeLinkMeta },
+  });
   const user = await queryOne(`SELECT ${USER_COLUMNS} FROM users u WHERE u.id = ?`, [req.params.id]);
-  res.json({ success: true, data: user });
+  const employee = employeeLinkMeta
+    ? await queryOne('SELECT * FROM hrms_employees WHERE id = ?', [employeeLinkMeta.employeeId])
+    : null;
+  res.json({ success: true, data: { ...user, employee }, meta: employeeLinkMeta || undefined });
 });
 
 export const setRoles = asyncHandler(async (req, res) => {

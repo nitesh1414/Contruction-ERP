@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 const NAV = [
   { to: '/', label: 'Admin Dashboard', icon: '📊', perm: null },
   { section: 'Access Control', tagline: 'Who uses the platform' },
-  { to: '/users', label: 'Users', icon: '👤', perm: 'users.view' },
+  { to: '/users', label: 'Users & Employees', icon: '👤', perm: 'users.view' },
   { to: '/roles', label: 'Roles & Permissions', icon: '🛡️', perm: 'roles.view' },
   { section: 'Master Data', tagline: 'Configure the operating model' },
   { to: '/projects', label: 'Projects & Wings', icon: '🏗️', perm: 'projects.view' },
@@ -19,7 +19,7 @@ const NAV = [
 ];
 
 const TITLES: Record<string, string> = {
-  '/': 'Admin Dashboard', '/users': 'User Management', '/roles': 'Roles & Permissions',
+  '/': 'Admin Dashboard', '/users': 'Users & Employees', '/roles': 'Roles & Permissions',
   '/projects': 'Projects & Wings', '/masters': 'Master Data',
   '/hrms': 'HR & Payroll', '/petty-cash': 'Petty Cash',
   '/audit-logs': 'Audit Logs', '/notifications': 'Broadcast Center',

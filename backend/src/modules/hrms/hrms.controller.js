@@ -134,7 +134,7 @@ async function createOrLinkLogin(conn, req, employee, password, roleIds) {
     if (linkedRows[0]) throw conflict('That login is already linked to another employee');
     await assertUserIdentityAvailable(conn, { email, employeeCode, userId: existingUser.id });
     const accountStatus = employee.is_active === 0 || ['resigned', 'terminated'].includes(employee.status)
-      ? 'inactive' : null;
+      ? 'inactive' : 'active';
     await conn.query(
       `UPDATE users SET employee_code = ?, name = ?, email = ?, phone = ?,
          status = COALESCE(?, status) WHERE id = ?`,
@@ -269,7 +269,7 @@ async function syncUserFromEmployee(conn, employee, userId) {
   await assertUserIdentityAvailable(conn, { email, employeeCode, userId });
   await conn.query(
     `UPDATE users SET employee_code = ?, name = ?, email = ?, phone = ?,
-       status = CASE WHEN ? = 0 OR ? IN ('resigned', 'terminated') THEN 'inactive' ELSE status END
+       status = CASE WHEN ? = 0 OR ? IN ('resigned', 'terminated') THEN 'inactive' ELSE 'active' END
      WHERE id = ?`,
     [employeeCode, employee.name, email, employee.phone || null, employee.is_active === 0 ? 0 : 1, employee.status || 'active', userId]
   );

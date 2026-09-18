@@ -42,7 +42,7 @@ Tokens: access token (default 12 h) + rotating refresh token (30 d, revocable â€
 | GET | `/users/export` | export | CSV |
 | GET | `/users/:id` | view | detail incl. roles, project access and linked `employee` object |
 | POST | `/users` | create | `{ name, email, password, phone?, employee_code?, roleIds?, projectAccess?, createEmployee?, employee? }` |
-| PUT | `/users/:id` | edit | profile fields + `status` (activate/deactivate); linked employee identity is updated transactionally |
+| PUT | `/users/:id` | edit | profile fields + `status` (activate/deactivate); linked employee identity is updated transactionally; pass `createEmployee: true` with optional `employee` fields to convert/link an unlinked user to the shared HR employee record |
 | PUT | `/users/:id/roles` | edit | `{ roleIds: [] }` |
 | PUT | `/users/:id/project-access` | edit | `{ entries: [{ project_id, wing_id|null }] }` |
 | PUT | `/users/:id/reset-password` | edit | admin reset `{ newPassword }` |

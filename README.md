@@ -30,7 +30,7 @@ Everything runs against a single **MySQL** database — no MongoDB, no ORM (raw 
 
 **Workforce** — worker master, categories, contractors, labour rates, daily attendance (present / absent / leave / half-day / overtime with auto wage + OT calculation), labour payment generation from attendance, monthly wage report.
 
-**HR & payroll** — one shared employee directory is used by the Admin Console and Project Tracking web app. Admin users can add, update and delete employees, optionally provision linked login credentials, manage leave and salary structures, generate payroll and record payments. Employee identity fields stay synchronized through `hrms_employees.user_id`.
+**HR & payroll** — one shared employee directory is used by the Admin Console and Project Tracking web app. A user account and its linked employee are the same person: creating either side explicitly offers the operator the other record, existing unlinked users can be converted to employees, and employees can receive or link login credentials. Admin users can add, update and delete employees, manage leave and salary structures, generate payroll and record payments. Shared name, email, phone, employee code and active status stay synchronized through `hrms_employees.user_id`.
 
 **Billing & sales** — cost entries by category/vendor with payment status, budget-vs-actual, unit sales with GST, staged payments, unit availability, pending collections.
 
